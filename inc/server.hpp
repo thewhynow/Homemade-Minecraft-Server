@@ -19,7 +19,6 @@ private:
     void set_main_fd();
     void accept_connection();
     void remove_connections();
-    void set_nonblocking(int fd);
 private:
     int sfd;
     std::vector<pollfd> pollfds;

@@ -1,4 +1,5 @@
 #include "inc/types.hpp"
+#include <cstring>
 
 net_string::net_string(
     std::span<uint8_t> &buff, size_t n

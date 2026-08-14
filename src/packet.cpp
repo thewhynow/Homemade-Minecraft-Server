@@ -32,6 +32,10 @@ packet_status_response::packet_status_response(
 void packet_status_response::serialize(
     std::vector<uint8_t> &buff
 ) const {
+    net_var_int(
+        packet::id.size() + json_response.size()
+    ).serialize(buff);
+
     packet::id.serialize(buff);
     json_response.serialize(buff);
 }
@@ -46,6 +50,10 @@ packet_pong_response::packet_pong_response(
 void packet_pong_response::serialize (
     std::vector<uint8_t> &buff
 ) const {
+    net_var_int(
+        packet::id.size() + sizeof timestamp
+    ).serialize(buff);
+
     packet::id.serialize(buff);
     net_type_serialize(timestamp, buff);
 }

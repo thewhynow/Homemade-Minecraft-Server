@@ -3,19 +3,26 @@
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
+#include <fcntl.h>
 #include <unistd.h>
 #include <exception>
 #include <cassert>
 
 socket_wrapper::socket_wrapper(int sfd){
     struct sockaddr_storage their_addr;
-    socklen_t their_size;
+    socklen_t their_size = sizeof their_addr;
 
     fd = ::accept(
         sfd, 
         reinterpret_cast<struct sockaddr*>(&their_addr),
         &their_size
     );
+
+    if (fd == -1)
+        throw std::exception();
+
+
+    set_nonblocking();
 }
 
 socket_wrapper::socket_wrapper(
@@ -60,4 +67,16 @@ size_t socket_wrapper::recv(
         throw std::exception();
 
     return res;
+}
+
+int socket_wrapper::get_fd(){
+    return fd;
+}
+
+void socket_wrapper::set_nonblocking(){
+    int flags = fcntl(fd, F_GETFL, 0);
+    if (flags == -1)
+        throw std::exception();
+    if (fcntl(fd, F_SETFL, flags | O_NONBLOCK) == -1)
+        throw std::exception();
 }

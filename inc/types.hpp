@@ -3,6 +3,9 @@
 #include <vector>
 #include <span>
 #include <bit>
+#include <cstdint>
+#include <stdexcept>
+#include <cstring>
 
 using net_boolean = bool;
 using net_byte    = int8_t;
@@ -25,7 +28,7 @@ T net_type_from_span(std::span<uint8_t> &buff){
     if (buff.size() < sizeof raw)
         throw std::length_error(std::to_string(__LINE__));
 
-    std::memcpy(&raw, buff.data(), sizeof raw);
+    memcpy(&raw, buff.data(), sizeof raw);
     if constexpr (
         std::endian::native == std::endian::little
     )
@@ -53,7 +56,7 @@ void net_type_serialize(
 
         size_t off = buff.size();
         buff.resize(off + sizeof raw);
-        std::memcpy(buff.data() + off, &raw, sizeof raw);
+        memcpy(buff.data() + off, &raw, sizeof raw);
     }
 }
 

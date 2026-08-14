@@ -2,6 +2,7 @@
 #include <sys/socket.h>
 #include <unistd.h>
 #include <span>
+#include <cstdlib>
 #include "inc/packet.hpp"
 
 connection::connection(socket_wrapper &&sock):
@@ -82,6 +83,7 @@ void connection::on_write(){
         );
     } catch (const std::exception &){
         state = dead;
+        return;
     }
 
     outbound.erase(

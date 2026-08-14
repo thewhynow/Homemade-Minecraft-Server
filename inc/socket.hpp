@@ -11,6 +11,9 @@ public:
 
     size_t send(const void *data, size_t len);
     size_t recv(void *data, size_t len);
+
+    int get_fd();
+    void set_nonblocking();
 private:
     int fd;
 };

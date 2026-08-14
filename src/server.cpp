@@ -9,8 +9,6 @@ void server::start(){
 
     /* pollfds[0] is the main socket */
     pollfds.emplace_back(sfd, POLLIN, 0);
-    /* push an empty connection so they are the same length */
-    connections.push_back(connection(socket_wrapper(0)));
 
     while (true){
         poll(pollfds.data(), pollfds.size(), -1);
@@ -19,14 +17,14 @@ void server::start(){
             accept_connection();
 
         for (size_t i = 1; i < pollfds.size(); ++i){
-            if (connections[i].is_dead())
+            if (connections[i - 1].is_dead())
                 continue;
 
             if (pollfds[i].revents & POLLIN)
-                connections[i].on_read();
+                connections[i - 1].on_read();
 
             if (pollfds[i].revents & POLLOUT)
-                connections[i].on_write();
+                connections[i - 1].on_write();
         }
 
         remove_connections();
@@ -35,15 +33,15 @@ void server::start(){
 
 void server::set_main_fd(){
     addrinfo hints = {
+        .ai_flags    = AI_PASSIVE,
         .ai_family   = AF_UNSPEC,
-        .ai_socktype = SOCK_STREAM,
-        .ai_flags    = AI_PASSIVE
+        .ai_socktype = SOCK_STREAM
     }, 
     *res;
 
     int err = getaddrinfo(NULL, "25565", &hints, &res);
 
-    if (err == -1)
+    if (err != 0)
         throw std::exception();
 
     int fd = -1;
@@ -57,8 +55,8 @@ void server::set_main_fd(){
 
         int res = bind(fd, i->ai_addr, i->ai_addrlen);
         if (res == -1){
-            fd = -1;
             close(fd);
+            fd = -1;
             continue;
         }
         else break;
@@ -76,21 +74,11 @@ void server::set_main_fd(){
 }
 
 void server::accept_connection(){
-    sockaddr_storage their_addr;
-    socklen_t their_len;
-    int nfd = accept(
-        sfd, (sockaddr*) &their_addr, &their_len
-    );
-
-    if (nfd == -1)
-        throw std::exception();
-
-    set_nonblocking(nfd);
-
+    socket_wrapper sock(sfd);
     pollfds.emplace_back(
-        nfd, POLLIN | POLLOUT, 0
+        sock.get_fd(), POLLIN | POLLOUT, 0
     );
-    connections.emplace_back(socket_wrapper(nfd));
+    connections.emplace_back(std::move(sock));
 }
 
 void server::remove_connections(){
@@ -98,15 +86,8 @@ void server::remove_connections(){
         if (!connections[i].is_dead())
             continue;
 
-        pollfds.erase(pollfds.begin() + i);
+        pollfds.erase(pollfds.begin() + i + 1);
         connections.erase(connections.begin() + i);
+        --i;
     }
-}
-
-void server::set_nonblocking(int fd){
-    int flags = fcntl(fd, F_GETFL, 0);
-    if (flags == -1)
-        throw std::exception();
-    if (fcntl(fd, F_SETFL, flags | O_NONBLOCK) == -1)
-        throw std::exception();
 }
