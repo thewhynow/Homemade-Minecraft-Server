@@ -18,14 +18,14 @@ packet_intention::packet_intention(
     packet(buff),
     version(buff),
     address(buff, 255),
-    port(net_type_from_span<net_ushort>(buff)),
+    port(buff),
     intent(buff)
 {}
 
 packet_status_response::packet_status_response(
     std::string_view json
 ):
-    packet{net_var_int(0)},
+    packet(0x00),
     json_response(json)
 {}
 
@@ -51,11 +51,11 @@ void packet_pong_response::serialize (
     std::vector<uint8_t> &buff
 ) const {
     net_var_int(
-        packet::id.size() + sizeof timestamp
+        packet::id.size() + timestamp.size()
     ).serialize(buff);
 
     packet::id.serialize(buff);
-    net_type_serialize(timestamp, buff);
+    timestamp.serialize(buff);
 }
 
 packet_status_request::packet_status_request(
@@ -68,7 +68,7 @@ packet_ping_request::packet_ping_request(
     std::span<uint8_t> &buff
 ):
     packet(buff),
-    timestamp(net_type_from_span<net_long>(buff))
+    timestamp(buff)
 {}
 
 

@@ -7,6 +7,8 @@
 #include <unistd.h>
 #include <exception>
 #include <cassert>
+#include "inc/errors.hpp"
+#include <errno.h>
 
 socket_wrapper::socket_wrapper(int sfd){
     struct sockaddr_storage their_addr;
@@ -19,15 +21,12 @@ socket_wrapper::socket_wrapper(int sfd){
     );
 
     if (fd == -1)
-        throw std::exception();
-
+        throw failed_accept();
 
     set_nonblocking();
 }
 
-socket_wrapper::socket_wrapper(
-    socket_wrapper &&other
-):
+socket_wrapper::socket_wrapper(socket_wrapper &&other):
     fd(other.fd)
 {
     other.fd = -1;
@@ -36,6 +35,9 @@ socket_wrapper::socket_wrapper(
 socket_wrapper &socket_wrapper::operator=(
     socket_wrapper &&other
 ){
+    if (fd != -1)
+        close(fd);
+
     fd = other.fd;
     other.fd = -1;
 
@@ -43,28 +45,36 @@ socket_wrapper &socket_wrapper::operator=(
 }
 
 socket_wrapper::~socket_wrapper(){
-    close(fd);
+    if (fd != -1)
+        close(fd);
 }
 
-size_t socket_wrapper::send(
+ssize_t socket_wrapper::send(
     const void *data, size_t len
 ){
     ssize_t res = ::send(fd, data, len, 0);
 
-    if (res == -1)
-        throw std::exception();
+    if (res == -1){
+        if (errno == EAGAIN)
+            return -1;
+        else
+            throw failed_send();
+    }
 
     return res;
 }
 
-size_t socket_wrapper::recv(
+ssize_t socket_wrapper::recv(
     void *data, size_t len
 ){
     ssize_t res = ::recv(fd, data, len, 0);
 
-    /* this is unlikely since we are using blocking sockets */
-    if (res == -1)
-        throw std::exception();
+    if (res == -1){
+        if (errno == EAGAIN)
+            return -1;
+        else
+            throw failed_read();
+    }
 
     return res;
 }

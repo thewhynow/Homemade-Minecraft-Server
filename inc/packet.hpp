@@ -35,7 +35,7 @@ struct packet_status_response : packet {
 };
 
 struct packet_pong_response : packet {
-    net_long    timestamp; /* match the one sent by client */
+    net_long timestamp; /* match the one sent by client */
 
     packet_pong_response(net_long timestamp);
 
@@ -50,4 +50,9 @@ struct packet_ping_request : packet {
     net_long timestamp; /* may be any number */
 
     packet_ping_request(std::span<uint8_t> &buff);
+};
+
+struct packet_hello : packet {
+    net_string username; /* n = 16 */
+
 };

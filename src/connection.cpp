@@ -4,6 +4,7 @@
 #include <span>
 #include <cstdlib>
 #include "inc/packet.hpp"
+#include "inc/errors.hpp"
 
 connection::connection(socket_wrapper &&sock):
     sock(std::move(sock)),
@@ -17,10 +18,16 @@ void connection::on_read(){
     if (state == dead)
         return;
 
-    /* know there is data to read so dw about throw */
-    ssize_t recieved = sock.recv(
-        temp_buff, sizeof temp_buff
-    );
+    ssize_t recieved;
+    try {
+        recieved = sock.recv(
+            temp_buff, sizeof temp_buff
+        );
+    }
+    catch (const failed_read &){
+        state = dead;
+        return;
+    }
 
     if (recieved == 0){
         state = dead;
@@ -36,38 +43,40 @@ void connection::on_read(){
 
     while (true){
         std::span<uint8_t> s(inbound_buff);
-
+        size_t before = s.size();
         net_var_int size(0);
         try {
             size = net_var_int(s);
         }
-        catch (const std::length_error&){ 
-            return; /* waiting for more */
+        catch (const unfinished_packet&){ 
+            return;
         }
-        catch (const std::exception&){
+        catch (const malformed_packet&){
             state = dead;
-            return; /* malformed */
+            return;
         }
 
-        if (size.value < 0 || size.value > 2097151){
+        size_t header = before - s.size();
+
+        if (size < 0 || size > 2097151){
             state = dead;
-            return; /* malformed */
+            return;/* malformed */
         }
 
-        if (s.size() < (size_t) size.value)
+        if (s.size() < (size_t) size)
             return; /* packet incomplete */
 
-        handle(
-            std::span(
-                inbound_buff.begin() + size.size(),
-                size.value
-            )
-        );
+        try {
+            handle(s.subspan(0, size));
+        }
+        catch (const std::runtime_error &){
+            state = dead;
+            return;
+        }
 
         inbound_buff.erase(
             inbound_buff.begin(),
-            inbound_buff.begin()
-            + size.size() + size.value
+            inbound_buff.begin() + header + size
         );
     }
 }
@@ -76,15 +85,19 @@ void connection::on_write(){
     if (!outbound.size())
         return;
 
-    size_t sent;
+    ssize_t sent;
     try {
         sent = sock.send(
             outbound.data(), outbound.size()
         );
-    } catch (const std::exception &){
+    } catch (const failed_send &){
         state = dead;
+        outbound.clear();
         return;
     }
+
+    if (sent < 0)
+        return;
 
     outbound.erase(
         outbound.begin(), outbound.begin() + sent
@@ -93,6 +106,10 @@ void connection::on_write(){
 
 bool connection::is_dead(){
     return state == dead;
+}
+
+bool connection::has_outbound_data(){
+    return !!outbound.size();
 }
 
 void connection::handle(
@@ -105,11 +122,18 @@ void connection::handle(
 
         case handshake: {
             packet_intention packet(buff);
+
             if (
-                packet.intent.value 
+                packet.intent
                 == packet_intention::intent_status
             )
                 state = status_request;
+            else if (
+                packet.intent
+                == packet_intention::intent_login
+            )
+                state = login_start;
+
             break;
         }
 
@@ -146,7 +170,11 @@ void connection::handle(
             break;
         }
 
-        case login: {
+        case login_start: {
+
+        }
+
+        case login_success: {
 
         }
 

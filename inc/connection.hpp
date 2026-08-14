@@ -11,6 +11,7 @@ public:
     void on_read();
     void on_write();
     bool is_dead();
+    bool has_outbound_data();
 public:
     enum connection_state {
         dead,
@@ -18,7 +19,8 @@ public:
         status_request,
         status_response,
         status_ping,
-        login,
+        login_start,
+        login_success,
         configuration,
         play
     };

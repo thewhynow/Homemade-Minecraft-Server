@@ -1,6 +1,7 @@
 #pragma once
 #include <poll.h>
 #include <cstdlib>
+#include <unistd.h>
 
 class socket_wrapper {
 public:
@@ -9,8 +10,8 @@ public:
     socket_wrapper &operator=(socket_wrapper &&other);
     ~socket_wrapper();
 
-    size_t send(const void *data, size_t len);
-    size_t recv(void *data, size_t len);
+    ssize_t send(const void *data, size_t len);
+    ssize_t recv(void *data, size_t len);
 
     int get_fd();
     void set_nonblocking();
