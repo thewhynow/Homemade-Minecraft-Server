@@ -1,4 +1,4 @@
-CXXFLAGS := -std=c++23 -Wall -Wextra -O3
+CXXFLAGS := -std=c++23 -Wall -Wextra -O3 -I./
 SOURCES  := $(wildcard src/*.cpp)
 OBJECTS  := $(patsubst src/%.cpp,build/%.o,$(SOURCES))
 

@@ -1,5 +1,5 @@
-#include <print>
+#include "inc/server.hpp"
 
 int main(){
-    std::println("Hello, World!");
+    server::instance.start();
 }
