@@ -20,6 +20,10 @@ public:
     unfinished_packet();
 };
 
+class nbt_end_tag : public parse_error {
+
+};
+
 class network_error : public std::runtime_error {
 public:
     using std::runtime_error::runtime_error;

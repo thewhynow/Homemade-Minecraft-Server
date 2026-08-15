@@ -1,58 +1,111 @@
 #pragma once
 #include "types.hpp"
-#include <span>
 
 /* PROTOCOL VERSION 776 */
 
-struct packet {
-    net_var_int id;
+template<typename... Ts>
+struct packet :
+    net_compound<net_var_int, Ts...>
+{
+    using body = net_compound<net_var_int, Ts...>;
+    using body::body;
 
-    packet(std::span<uint8_t> &buff);
-    packet(net_var_int id);
+    auto &id(){
+        return this-> template get<0>();
+    }
+
+    const auto &id() const {
+        return this-> template get<0>();
+    }
+
+    void serialize(std::vector<uint8_t> &buff) const {
+        net_var_int(body::size()).serialize(buff);
+        body::serialize(buff);
+    }
+
+    /* for net_compound compatbility */
+    size_t size() const {
+        size_t len = body::size();
+        return net_var_int(len).size() + len;
+    }
 };
 
-struct packet_intention : packet {
-    net_var_int version;
-    net_string  address; /* n = 255 */
-    net_ushort  port;
-    net_var_int intent;
+#define PACKET_FIELD(num, name)                                        \
+    auto &name(){ return this-> template get<num + 1>(); }             \
+    const auto &name() const { return this-> template get<num + 1>(); }
+
+
+struct packet_intention : 
+    packet<
+        net_var_int,
+        net_string,
+        net_ushort,
+        net_var_int
+    >
+{
+    using packet::packet;
+
+    PACKET_FIELD(0, version);
+    PACKET_FIELD(1, address);
+    PACKET_FIELD(2, port);
+    PACKET_FIELD(3, intent);
 
     enum intents {
         intent_status   = 1,
         intent_login    = 2,
         intent_transfer = 3
     };
-
-    packet_intention(std::span<uint8_t> &buff);
 };
 
-struct packet_status_response : packet {
-    net_string  json_response; /* n = 32767 */
+struct packet_status_response :
+    packet<net_string>
+{
+    using packet::packet;
 
-    packet_status_response(std::string_view json);
-
-    void serialize(std::vector<uint8_t> &buff) const;
+    PACKET_FIELD(0, json_response);
 };
 
-struct packet_pong_response : packet {
-    net_long timestamp; /* match the one sent by client */
+struct packet_pong_response :
+    packet<net_long>
+{
+    using packet::packet;
 
-    packet_pong_response(net_long timestamp);
-
-    void serialize(std::vector<uint8_t> &buff) const;
+    PACKET_FIELD(0, timestamp);
 };
 
-struct packet_status_request : packet {
-    packet_status_request(std::span<uint8_t> &buff);
+struct packet_status_request :
+    packet<>
+{
+    using packet::packet;
 };
 
-struct packet_ping_request : packet {
-    net_long timestamp; /* may be any number */
+struct packet_ping_request :
+    packet<net_long>
+{
+    using packet::packet;
 
-    packet_ping_request(std::span<uint8_t> &buff);
+    PACKET_FIELD(0, timestamp);
 };
 
-struct packet_hello : packet {
-    net_string username; /* n = 16 */
+struct packet_hello :
+    packet<net_string, net_uuid>
+{
+    using packet::packet;
 
+    PACKET_FIELD(0, name);
+    PACKET_FIELD(1, player_uuid);
 };
+
+struct packet_login_finished :
+    packet<net_game_profile, net_uuid>
+{
+    using packet::packet;
+
+    PACKET_FIELD(0, profile);
+    PACKET_FIELD(1, session_id);
+};
+
+struct packet_registry_data : 
+    packet<
+        net_identifier,
+        

@@ -6,7 +6,48 @@
 #include <cstring>
 #include <string>
 #include <optional>
+#include <bit>
+#include <type_traits>
+#include <algorithm>
 #include "errors.hpp"
+
+template <typename T>
+using wire_raw_type =
+    std::conditional_t<sizeof(T) == 1, uint8_t,
+    std::conditional_t<sizeof(T) == 2, uint16_t,
+    std::conditional_t<sizeof(T) == 4, uint32_t,
+                                       uint64_t
+    >>>
+;
+
+template <typename T>
+T read_be(std::span<uint8_t> &buff){
+    wire_raw_type<T> raw;
+
+    if (buff.size() < sizeof raw)
+        throw unfinished_packet();
+
+    memcpy(&raw, buff.data(), sizeof raw);
+
+    if constexpr (std::endian::native != std::endian::big)
+        raw = std::byteswap(raw);
+
+    buff = buff.subspan(sizeof raw);
+
+    return std::bit_cast<T>(raw);
+}
+
+template <typename T>
+void write_be(std::vector<uint8_t> &buff, T value){
+    wire_raw_type<T> raw = std::bit_cast<wire_raw_type<T>>(value);
+
+    if constexpr (std::endian::native != std::endian::big)
+        raw = std::byteswap(raw);
+
+    size_t off = buff.size();
+    buff.resize(off + sizeof raw);
+    memcpy(buff.data() + off, &raw, sizeof raw);
+}
 
 struct net_type {
     void serialize (std::vector<uint8_t> &buff) const;
@@ -17,13 +58,6 @@ struct net_type {
     struct net_name : net_type {                                \
         base_name value;                                        \
         using base_type = base_name;                            \
-        using raw_type =                                        \
-            std::conditional_t<sizeof(base_name) == 1, uint8_t, \
-            std::conditional_t<sizeof(base_name) == 2, uint16_t,\
-            std::conditional_t<sizeof(base_name) == 4, uint32_t,\
-                                                       uint64_t \
-            >>>                                                 \
-        ;                                                       \
                                                                 \
         net_name(std::span<uint8_t> &buff);                     \
         net_name(base_type);                                    \
@@ -111,6 +145,8 @@ struct net_string : net_type {
     size_t size() const;
 };
 
+using net_identifier = net_string;
+
 struct net_var_int : net_type {
     net_int value;
     using base_type = net_int::base_type;
@@ -150,17 +186,8 @@ struct net_array : net_type {
     std::array<X, N> data;
 
     net_array(std::span<uint8_t> &buff){
-        size_t total_read = 0;
-
-        for (int i = 0; i < N; ++i){
-            size_t begin = buff.size();
-            X elem(buff);
-            total_read += begin - buff.size();
-            data[i] = std::move(elem);
-
-            if (total_read > buff.size())
-                throw unfinished_packet();
-        }
+        for (int i = 0; i < N; ++i)
+            data[i] = X(buff);
     }
 
     net_array(const std::array<X, N> &data):
@@ -191,19 +218,10 @@ struct net_prefixed_array : net_type {
         if (len < 0)
             throw malformed_packet();
 
-        data.reserve(len * sizeof(X));
+        data.reserve(std::min<size_t>(len, buff.size()));
 
-        size_t total_read = 0;
-
-        for (int i = 0; i < len; ++i){
-            size_t begin = buff.size();
-            X elem(buff);
-            total_read += begin - buff.size();
-            data.emplace_back(std::move(elem));
-
-            if (total_read > buff.size())
-                throw unfinished_packet();
-        }
+        for (int i = 0; i < len; ++i)
+            data.emplace_back(buff);
     }
 
     net_prefixed_array(const std::vector<X> &data):
@@ -211,6 +229,7 @@ struct net_prefixed_array : net_type {
     {}
 
     void serialize(std::vector<uint8_t> &buff) const{
+        net_var_int(data.size()).serialize(buff);
         for (const X &i : data)
             i.serialize(buff);
     }
@@ -219,7 +238,7 @@ struct net_prefixed_array : net_type {
         size_t s = 0;
         for (const X &i : data)
             s += i.size();
-        return s;
+        return s + net_var_int(data.size()).size();
     }
 };
 
@@ -277,6 +296,8 @@ struct net_game_profile :
         net_prefixed_array<net_game_profile_property>
     >
 {
+    using net_compound::net_compound;
+
     NET_COMPOUND_FIELD(0, uuid);
     NET_COMPOUND_FIELD(1, username);
     NET_COMPOUND_FIELD(2, properties);
@@ -289,4 +310,5 @@ struct net_position {
 
     net_position(std::span<uint8_t> &buff);
 };
+
 

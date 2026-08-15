@@ -5,22 +5,9 @@
 #define DEFINE_SIMPLE_NET_TYPE(net_name, base_name)       \
     net_name::net_name(                                   \
         std::span<uint8_t> &buff                          \
-    ){                                                    \
-        raw_type raw;                                     \
-                                                          \
-        if (buff.size() < sizeof raw)                     \
-            throw unfinished_packet();                    \
-                                                          \
-        memcpy(&raw, buff.data(), sizeof raw);            \
-        if constexpr (                                    \
-            std::endian::native == std::endian::little    \
-        )                                                 \
-            raw = std::byteswap(raw);                     \
-                                                          \
-        buff = buff.subspan(sizeof raw);                  \
-                                                          \
-        value = std::bit_cast<base_name>(raw);            \
-    }                                                     \
+    ):                                                    \
+        value(read_be<base_name>(buff))                   \
+    {}                                                    \
                                                           \
     net_name::net_name(base_type value):                  \
         value(value)                                      \
@@ -38,16 +25,7 @@
     void net_name::serialize(                             \
         std::vector<uint8_t> &buff                        \
     ) const {                                             \
-        raw_type raw = std::bit_cast<raw_type>(value);    \
-                                                          \
-        if constexpr (                                    \
-            std::endian::native == std::endian::little    \
-        )                                                 \
-            raw = std::byteswap(raw);                     \
-                                                          \
-        size_t off = buff.size();                         \
-        buff.resize(off + sizeof raw);                    \
-        memcpy(buff.data() + off, &raw, sizeof raw);      \
+        write_be<base_name>(buff, value);                 \
     }                                                     \
                                                           \
     size_t net_name::size() const {                       \

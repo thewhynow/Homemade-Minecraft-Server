@@ -5,6 +5,7 @@
 #include <cstdlib>
 #include "inc/packet.hpp"
 #include "inc/errors.hpp"
+#include <print>
 
 connection::connection(socket_wrapper &&sock):
     sock(std::move(sock)),
@@ -124,12 +125,12 @@ void connection::handle(
             packet_intention packet(buff);
 
             if (
-                packet.intent
+                packet.intent()
                 == packet_intention::intent_status
             )
                 state = status_request;
             else if (
-                packet.intent
+                packet.intent()
                 == packet_intention::intent_login
             )
                 state = login_start;
@@ -141,16 +142,19 @@ void connection::handle(
             packet_status_request packet(buff);
 
             packet_status_response response(
-                "{                                  \n"
-                "    \"version\": {                 \n"
-                "        \"name\": \"1.21.8\",      \n"
-                "        \"protocol\": 776          \n"
-                "    },                             \n"
-                "    \"description\": {             \n"
-                "        \"text\": \"Hello, World!\"\n"
-                "    },                             \n"
-                "    \"enforcesSecureChat\": false  \n"
-                "}                                  \n"
+                {0x0},
+                {
+                    "{                                  \n"
+                    "    \"version\": {                 \n"
+                    "        \"name\": \"1.21.8\",      \n"
+                    "        \"protocol\": 776          \n"
+                    "    },                             \n"
+                    "    \"description\": {             \n"
+                    "        \"text\": \"Hello, World!\"\n"
+                    "    },                             \n"
+                    "    \"enforcesSecureChat\": false  \n"
+                    "}                                  \n"
+                }
             );
 
             queue_packet(response);
@@ -162,7 +166,8 @@ void connection::handle(
             packet_ping_request packet(buff);
 
             packet_pong_response response(
-                packet.timestamp
+                {0x1},
+                {packet.timestamp()}
             );
 
             queue_packet(response);
@@ -171,11 +176,29 @@ void connection::handle(
         }
 
         case login_start: {
+            packet_hello packet(buff);
 
+            std::println("Username: {}", packet.name().value);
+
+            packet_login_finished response {
+                {0x03},
+                {
+                    packet.player_uuid(),
+                    packet.name(),
+                    {{}}
+                },
+                {0, 0}
+            };
+
+            queue_packet(response);
+            state = login_success;
+            break;
         }
 
         case login_success: {
-
+            packet_login_finished packet(buff);
+            state = configuration;
+            break;
         }
 
         case configuration: {

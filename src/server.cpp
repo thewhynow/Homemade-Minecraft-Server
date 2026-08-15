@@ -1,4 +1,5 @@
 #include "inc/server.hpp"
+#include <print>
 
 server server::instance;
 
@@ -52,7 +53,9 @@ void server::set_main_fd(){
     int err = getaddrinfo(NULL, "25565", &hints, &res);
 
     if (err != 0)
-        throw std::exception();
+        throw std::runtime_error(
+            std::string("getaddrinfo") + gai_strerror(err)
+        );
 
     int fd = -1;
     for (auto i = res; i; i = i->ai_next){
@@ -62,6 +65,9 @@ void server::set_main_fd(){
 
         if (fd == -1)
             continue;
+
+        int yes = 1;
+        setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof yes);
 
         int res = bind(fd, i->ai_addr, i->ai_addrlen);
         if (res == -1){
@@ -75,10 +81,14 @@ void server::set_main_fd(){
     freeaddrinfo(res);
 
     if (fd == -1)
-        throw std::exception();
+        throw std::runtime_error(
+            std::string("bind: ") + strerror(errno)
+        );
 
     if (listen(fd, 10) == -1)
-        throw std::exception();
+        throw std::runtime_error(
+            std::string("listen: ") + strerror(errno)
+        );
 
     sfd = fd;
 }
