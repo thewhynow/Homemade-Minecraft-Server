@@ -5,7 +5,6 @@
 #include <cstdlib>
 #include "inc/packet.hpp"
 #include "inc/errors.hpp"
-#include <print>
 
 connection::connection(socket_wrapper &&sock):
     sock(std::move(sock)),
@@ -298,8 +297,6 @@ void connection::queue_registry(
         )
     );
 }
-
-
 
 template <typename T>
 void connection::queue_packet(

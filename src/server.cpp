@@ -1,5 +1,4 @@
 #include "inc/server.hpp"
-#include <print>
 
 server server::instance;
 
