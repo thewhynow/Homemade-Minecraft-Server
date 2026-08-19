@@ -1,5 +1,5 @@
 #pragma once
-#include "types.hpp"
+#include "utils.hpp"
 #include "errors.hpp"
 #include <vector>
 #include <span>
@@ -37,7 +37,7 @@ struct nbt_type_tagged : public nbt_type {
     std::string name;
 
     nbt_type_tagged(std::span<uint8_t> &buff);
-    nbt_type_tagged(nbt_tag tag, std::string name = {});
+    nbt_type_tagged(nbt_tag tag, std::string &&name = {});
 
     static std::unique_ptr<nbt_type_tagged> build_object(
         std::span<uint8_t> &buff
@@ -48,7 +48,6 @@ struct nbt_type_tagged : public nbt_type {
 };
 
 
-/* empty but here for compat reasons */
 struct nbt_type_untagged : public nbt_type {
     nbt_type_untagged(std::span<uint8_t> &buff);
 
@@ -79,11 +78,7 @@ struct nbt_simple_type : B {
         payload(read_be<base_type>(buff))
     {}
 
-    /**
-     * the name is ignored by the untagged base, so both variants
-     * take it and only the tagged one writes it out
-     */
-    nbt_simple_type(base_type value, std::string name = {}):
+    nbt_simple_type(base_type value, std::string &&name = {}):
         base_nbt_type(tag, std::move(name)),
         payload(value)
     {}
@@ -113,10 +108,6 @@ struct nbt_simple_type : B {
     }
 };
 
-/**
- * TAG_Byte_Array, TAG_Int_Array and TAG_Long_Array: a signed
- * 32-bit element count followed by that many big-endian elements
- */
 template <typename B, nbt_tag tag, typename E>
 requires
     std::same_as<B, nbt_type_tagged> ||
@@ -133,7 +124,9 @@ struct nbt_array_type : B {
         int32_t length = read_be<int32_t>(buff);
 
         if (length < 0)
-            throw malformed_packet("array length is negative");
+            throw malformed_packet(
+                "array length is negative"
+            );
 
         if ((size_t) length > buff.size() / sizeof(element_type))
             throw unfinished_packet();
@@ -145,7 +138,8 @@ struct nbt_array_type : B {
     }
 
     nbt_array_type(
-        std::vector<element_type> data, std::string name = {}
+        std::vector<element_type> &&data,
+        std::string &&name = {}
     ):
         base_nbt_type(tag, std::move(name)),
         data(std::move(data))
@@ -155,7 +149,8 @@ struct nbt_array_type : B {
         return tag;
     }
 
-    void serialize(std::vector<uint8_t> &buff) const override {
+    void serialize(std::vector<uint8_t> &buff)
+    const override {
         base_nbt_type::serialize(buff);
 
         buff.reserve(
@@ -196,11 +191,16 @@ struct nbt_string_type : B {
         if (length > buff.size())
             throw unfinished_packet();
 
-        data = std::string((const char*) buff.data(), length);
+        data = std::string(
+            (const char*) buff.data(), length
+        );
         buff = buff.subspan(length);
     }
 
-    nbt_string_type(std::string data, std::string name = {}):
+    nbt_string_type(
+        std::string &&data, 
+        std::string &&name = {}
+    ):
         base_nbt_type(nbt_tag::string, std::move(name)),
         data(std::move(data))
     {}
@@ -209,20 +209,29 @@ struct nbt_string_type : B {
         return nbt_tag::string;
     }
 
-    void serialize(std::vector<uint8_t> &buff) const override {
+    void serialize(std::vector<uint8_t> &buff)
+    const override {
         if (data.size() > 0xFFFF)
-            throw malformed_packet("string exceeds 65535 bytes");
+            throw malformed_packet(
+                "string exceeds 65535 bytes"
+            );
 
         base_nbt_type::serialize(buff);
 
-        buff.reserve(buff.size() + sizeof(uint16_t) + data.size());
+        buff.reserve(
+            buff.size() +
+            sizeof(uint16_t) +
+            data.size()
+        );
 
         write_be<uint16_t>(buff, (uint16_t) data.size());
         buff.insert(buff.end(), data.begin(), data.end());
     }
 
     size_t size() const override {
-        return base_nbt_type::size() + sizeof(uint16_t) + data.size();
+        return base_nbt_type::size() +
+            sizeof(uint16_t) +
+            data.size();
     }
 };
 
@@ -234,7 +243,9 @@ struct nbt_list_type : B {
     using base_nbt_type = B;
 
     nbt_tag element_tag;
-    std::vector<std::unique_ptr<nbt_type_untagged>> data;
+    std::vector<
+        std::unique_ptr<nbt_type_untagged>
+    > data;
 
     nbt_list_type(std::span<uint8_t> &buff):
         base_nbt_type(buff),
@@ -243,23 +254,33 @@ struct nbt_list_type : B {
         int32_t length = read_be<int32_t>(buff);
 
         if (length < 0)
-            throw malformed_packet("list length is negative");
+            throw malformed_packet(
+                "list length is negative"
+            );
 
         if (element_tag == nbt_tag::end && length)
-            throw malformed_packet("non-empty list of TAG_End");
+            throw malformed_packet(
+                "non-empty list of TAG_End"
+            );
 
-        data.reserve(std::min<size_t>(length, buff.size()));
+        data.reserve(
+            std::min<size_t>(length, buff.size())
+        );
 
         for (int32_t i = 0; i < length; ++i)
             data.emplace_back(
-                nbt_type_untagged::build_object(element_tag, buff)
+                nbt_type_untagged::build_object(
+                    element_tag, buff
+                )
             );
     }
 
     nbt_list_type(
         nbt_tag element_tag,
-        std::vector<std::unique_ptr<nbt_type_untagged>> data,
-        std::string name = {}
+        std::vector<
+            std::unique_ptr<nbt_type_untagged>
+        > &&data,
+        std::string &&name = {}
     ):
         base_nbt_type(nbt_tag::list, std::move(name)),
         element_tag(element_tag),
@@ -270,7 +291,8 @@ struct nbt_list_type : B {
         return nbt_tag::list;
     }
 
-    void serialize(std::vector<uint8_t> &buff) const override {
+    void serialize(std::vector<uint8_t> &buff)
+    const override {
         base_nbt_type::serialize(buff);
 
         write_be<int8_t>(buff, (int8_t) element_tag);
@@ -282,7 +304,10 @@ struct nbt_list_type : B {
 
     size_t size() const override {
         size_t total =
-            base_nbt_type::size() + sizeof(int8_t) + sizeof(int32_t);
+            base_nbt_type::size() +
+            sizeof(int8_t) +
+            sizeof(int32_t)
+        ;
 
         for (const auto &i : data)
             total += i->size();
@@ -298,7 +323,9 @@ requires
 struct nbt_compound_type : B {
     using base_nbt_type = B;
 
-    std::vector<std::unique_ptr<nbt_type_tagged>> data;
+    std::vector<
+        std::unique_ptr<nbt_type_tagged>
+    > data;
 
     nbt_compound_type(std::span<uint8_t> &buff):
         base_nbt_type(buff)
@@ -313,8 +340,10 @@ struct nbt_compound_type : B {
     }
 
     nbt_compound_type(
-        std::vector<std::unique_ptr<nbt_type_tagged>> data,
-        std::string name = {}
+        std::vector<
+            std::unique_ptr<nbt_type_tagged>
+        > &&data,
+        std::string &&name = {}
     ):
         base_nbt_type(nbt_tag::compound, std::move(name)),
         data(std::move(data))
@@ -324,7 +353,8 @@ struct nbt_compound_type : B {
         return nbt_tag::compound;
     }
 
-    void serialize(std::vector<uint8_t> &buff) const override {
+    void serialize(std::vector<uint8_t> &buff)
+    const override {
         base_nbt_type::serialize(buff);
 
         for (const auto &i : data)
@@ -334,7 +364,8 @@ struct nbt_compound_type : B {
     }
 
     size_t size() const override {
-        size_t total = base_nbt_type::size() + sizeof(int8_t);
+        size_t total = 
+            base_nbt_type::size() + sizeof(int8_t);
 
         for (const auto &i : data)
             total += i->size();

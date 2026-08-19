@@ -8,46 +8,11 @@
 #include <optional>
 #include <bit>
 #include <type_traits>
+#include <utility>
 #include <algorithm>
 #include "errors.hpp"
-
-template <typename T>
-using wire_raw_type =
-    std::conditional_t<sizeof(T) == 1, uint8_t,
-    std::conditional_t<sizeof(T) == 2, uint16_t,
-    std::conditional_t<sizeof(T) == 4, uint32_t,
-                                       uint64_t
-    >>>
-;
-
-template <typename T>
-T read_be(std::span<uint8_t> &buff){
-    wire_raw_type<T> raw;
-
-    if (buff.size() < sizeof raw)
-        throw unfinished_packet();
-
-    memcpy(&raw, buff.data(), sizeof raw);
-
-    if constexpr (std::endian::native != std::endian::big)
-        raw = std::byteswap(raw);
-
-    buff = buff.subspan(sizeof raw);
-
-    return std::bit_cast<T>(raw);
-}
-
-template <typename T>
-void write_be(std::vector<uint8_t> &buff, T value){
-    wire_raw_type<T> raw = std::bit_cast<wire_raw_type<T>>(value);
-
-    if constexpr (std::endian::native != std::endian::big)
-        raw = std::byteswap(raw);
-
-    size_t off = buff.size();
-    buff.resize(off + sizeof raw);
-    memcpy(buff.data() + off, &raw, sizeof raw);
-}
+#include "utils.hpp"
+#include "nbt.hpp"
 
 struct net_type {
     void serialize (std::vector<uint8_t> &buff) const;
@@ -97,7 +62,7 @@ struct net_compound : net_type {
     {}
 
     net_compound(Ts... vals):
-        fields((vals)...)
+        fields(std::move(vals)...)
     {}
 
     template<size_t I>
@@ -228,6 +193,10 @@ struct net_prefixed_array : net_type {
         data(data)
     {}
 
+    net_prefixed_array(std::vector<X> &&data):
+        data(std::move(data))
+    {}
+
     void serialize(std::vector<uint8_t> &buff) const{
         net_var_int(data.size()).serialize(buff);
         for (const X &i : data)
@@ -254,8 +223,16 @@ struct net_prefixed_optional : net_type {
         )
     {}
 
+    net_prefixed_optional(nullptr_t):
+        field(std::nullopt)
+    {}
+
     net_prefixed_optional(const X &field):
         field(field)
+    {}
+
+    net_prefixed_optional(X &&field):
+        field(std::move(field))
     {}
 
     void serialize(std::vector<uint8_t> &buff) const {
@@ -303,6 +280,44 @@ struct net_game_profile :
     NET_COMPOUND_FIELD(2, properties);
 };
 
+struct net_nbt_data : net_type {
+    nbt_compound_untagged data;
+
+    net_nbt_data(std::span<uint8_t> &buff);
+    net_nbt_data(nbt_compound_untagged &&data);
+
+    void serialize(std::vector<uint8_t> &) const;
+    size_t size() const;
+};
+
+struct net_select_known_packs_known_pack :
+    net_compound<
+        net_string,
+        net_string,
+        net_string
+    >
+{
+    using net_compound::net_compound;
+
+    NET_COMPOUND_FIELD(0, name_space);
+    NET_COMPOUND_FIELD(1, id);
+    NET_COMPOUND_FIELD(2, version);
+};
+
+struct net_registry_data_entry :
+    net_compound<
+        net_identifier,
+        net_prefixed_optional<
+            net_nbt_data
+        >
+    >
+{
+    using net_compound::net_compound;
+
+    NET_COMPOUND_FIELD(0, id);
+    NET_COMPOUND_FIELD(1, data);
+};
+
 struct net_position {
     net_long x;
     net_long z;
@@ -310,5 +325,3 @@ struct net_position {
 
     net_position(std::span<uint8_t> &buff);
 };
-
-

@@ -11,16 +11,21 @@ nbt_type_tagged::nbt_type_tagged(std::span<uint8_t> &buff):
     if (length > buff.size())
         throw unfinished_packet();
 
-    name = std::string((const char*) buff.data(), length);
+    name = std::string(
+        (const char*) buff.data(), length
+    );
     buff = buff.subspan(length);
 }
 
-nbt_type_tagged::nbt_type_tagged(nbt_tag tag, std::string name):
+nbt_type_tagged::nbt_type_tagged(
+    nbt_tag tag, std::string &&name
+):
     tag(tag),
     name(std::move(name))
 {}
 
-std::unique_ptr<nbt_type_tagged> nbt_type_tagged::build_object(
+std::unique_ptr<nbt_type_tagged> 
+nbt_type_tagged::build_object(
     std::span<uint8_t> &buff
 ){
     if (buff.empty())
@@ -62,9 +67,6 @@ std::unique_ptr<nbt_type_tagged> nbt_type_tagged::build_object(
 void nbt_type_tagged::serialize(
     std::vector<uint8_t> &buff
 ) const {
-    if (name.size() > 0xFFFF)
-        throw malformed_packet("tag name exceeds 65535 bytes");
-
     write_be<uint8_t>(buff, (uint8_t) tag);
 
     write_be<uint16_t>(buff, (uint16_t) name.size());
@@ -87,7 +89,7 @@ std::unique_ptr<nbt_type_untagged> nbt_type_untagged::build_object(
 ){
     switch (tag){
         case nbt_tag::end:
-            throw malformed_packet("TAG_End element in a list");
+            throw malformed_packet("misplaced TAG_end");
         case nbt_tag::int8:
             return std::make_unique<nbt_byte_untagged>(buff);
         case nbt_tag::int16:
@@ -120,5 +122,3 @@ std::unique_ptr<nbt_type_untagged> nbt_type_untagged::build_object(
 size_t nbt_type_untagged::size() const {
     return 0;
 }
-
-

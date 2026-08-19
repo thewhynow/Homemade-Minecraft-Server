@@ -197,6 +197,32 @@ size_t net_var_long::size() const {
         (std::bit_width((net_ulong)value | 1U) + 6) / 7;
 }
 
+net_nbt_data::net_nbt_data(
+    std::span<uint8_t> &buff
+):
+    data(/* need to read tag first */
+        (read_be<nbt_tag>(buff), buff)
+    )
+{}
+
+net_nbt_data::net_nbt_data(
+    nbt_compound_untagged &&data
+):
+    data(std::move(data))
+{}
+
+void net_nbt_data::serialize(
+    std::vector<uint8_t> &buff
+) const {
+    write_be(buff, nbt_tag::compound);
+    data.serialize(buff);
+}
+
+size_t net_nbt_data::size() const {
+    return sizeof(nbt_tag::compound)
+        + data.size();
+}
+
 net_position::net_position(std::span<uint8_t> &buff):
     x(0), z(0), y(0)
 {

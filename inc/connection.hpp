@@ -21,7 +21,9 @@ public:
         status_ping,
         login_start,
         login_success,
-        configuration,
+        configuration_select,
+        configuration_registry,
+        configuation_finish,
         play
     };
 private:
@@ -29,6 +31,13 @@ private:
 
     template<typename T>
     void queue_packet(const T &packet);
+
+    void queue_registry(
+        std::string_view name, 
+        std::vector<net_registry_data_entry> 
+            &&entries
+    );
+
 private:
     socket_wrapper sock;
     connection_state state;

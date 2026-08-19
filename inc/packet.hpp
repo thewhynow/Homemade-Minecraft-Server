@@ -3,6 +3,32 @@
 
 /* PROTOCOL VERSION 776 */
 
+namespace packet_id {
+    enum class handshake : uint8_t {
+        intention = 0
+    };
+
+    enum class status : uint8_t {
+        response = 0,
+        pong     = 1,
+        request  = 0,
+        ping     = 1
+    };
+
+    enum class login : uint8_t {
+        hello        = 0,
+        finished     = 2,
+        acknowledged = 3
+    };
+
+    enum class configuration : uint8_t {
+        known_client_bound = 7,
+        known_server_bound = 14,
+        registry           = 7,
+        finish             = 3
+    };
+};
+
 template<typename... Ts>
 struct packet :
     net_compound<net_var_int, Ts...>
@@ -35,7 +61,7 @@ struct packet :
     const auto &name() const { return this-> template get<num + 1>(); }
 
 
-struct packet_intention : 
+struct packet_intention :
     packet<
         net_var_int,
         net_string,
@@ -105,7 +131,34 @@ struct packet_login_finished :
     PACKET_FIELD(1, session_id);
 };
 
-struct packet_registry_data : 
+struct packet_login_acknowledged :
+    packet<>
+{
+    using packet::packet;
+};
+
+struct packet_select_known_packs :
+    packet<
+        net_prefixed_array<
+            net_select_known_packs_known_pack
+        >
+    >
+{
+    using packet::packet;
+
+    PACKET_FIELD(0, known_packs);
+};
+
+struct packet_registry_data :
     packet<
         net_identifier,
-        
+        net_prefixed_array<
+            net_registry_data_entry
+        >
+    >
+{
+    using packet::packet;
+
+    PACKET_FIELD(0, id);
+    PACKET_FIELD(1, entries);
+};

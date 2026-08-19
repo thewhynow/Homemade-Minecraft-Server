@@ -142,7 +142,7 @@ void connection::handle(
             packet_status_request packet(buff);
 
             packet_status_response response(
-                {0x0},
+                {(uint8_t) packet_id::status::response},
                 {
                     "{                                  \n"
                     "    \"version\": {                 \n"
@@ -166,7 +166,7 @@ void connection::handle(
             packet_ping_request packet(buff);
 
             packet_pong_response response(
-                {0x1},
+                {(uint8_t) packet_id::status::pong},
                 {packet.timestamp()}
             );
 
@@ -178,10 +178,8 @@ void connection::handle(
         case login_start: {
             packet_hello packet(buff);
 
-            std::println("Username: {}", packet.name().value);
-
             packet_login_finished response {
-                {0x03},
+                {(uint8_t) packet_id::login::finished},
                 {
                     packet.player_uuid(),
                     packet.name(),
@@ -196,13 +194,89 @@ void connection::handle(
         }
 
         case login_success: {
-            packet_login_finished packet(buff);
-            state = configuration;
+            packet_login_acknowledged packet(buff);
+
+            packet_select_known_packs response {
+                {(uint8_t) packet_id::configuration::known_client_bound},
+                {
+                    {
+                        {{"minecraft"}, {"core"}, {"26.2"}}
+                    }
+                }
+            };
+
+            queue_packet(response);
+            state = configuration_select;
             break;
         }
 
-        case configuration: {
+        case configuration_select: {
+            packet_select_known_packs packet(buff);
 
+            for (const auto &i : packet.known_packs().data)
+                if (
+                    i.name_space().value == "minecraft" &&
+                    i.id().value == "core" &&
+                    i.version().value == "26.2"
+                )
+                    goto success;
+
+            throw std::runtime_error(
+                "client does not have minecraft:core/26.2"
+            );
+
+        success:
+            std::vector<net_registry_data_entry> entries;
+            /* deduction actually works here */
+            entries.push_back({{"minecraft:pattern_item/bordure_indented"}, {nullptr}});
+            entries.push_back({{"minecraft:pattern_item/creeper"}, {nullptr}});
+            entries.push_back({{"minecraft:pattern_item/field_masoned"}, {nullptr}});
+            entries.push_back({{"minecraft:pattern_item/flow"}, {nullptr}});
+            entries.push_back({{"minecraft:pattern_item/flower"}, {nullptr}});
+            entries.push_back({{"minecraft:pattern_item/globe"}, {nullptr}});
+            entries.push_back({{"minecraft:pattern_item/guster"}, {nullptr}});
+            entries.push_back({{"minecraft:pattern_item/mojang"}, {nullptr}});
+            entries.push_back({{"minecraft:pattern_item/piglin"}, {nullptr}});
+            entries.push_back({{"minecraft:pattern_item/skull"}, {nullptr}});
+            queue_registry("minecraft:banner_pattern", std::move(entries));
+
+            queue_registry("minecraft:chat_type", std::move(entries));
+
+            entries.push_back({{"minecraft:cactus"}, {nullptr}});
+            entries.push_back({{"minecraft:campfire"}, {nullptr}});
+            entries.push_back({{"minecraft:cramming"}, {nullptr}});
+            entries.push_back({{"minecraft:dragon_breath"}, {nullptr}});
+            entries.push_back({{"minecraft:drown"}, {nullptr}});
+            entries.push_back({{"minecraft:dry_out"}, {nullptr}});
+            entries.push_back({{"minecraft:ender_pearl"}, {nullptr}});
+            entries.push_back({{"minecraft:fall"}, {nullptr}});
+            entries.push_back({{"minecraft:fly_into_wall"}, {nullptr}});
+            entries.push_back({{"minecraft:freeze"}, {nullptr}});
+            entries.push_back({{"minecraft:generic"}, {nullptr}});
+            entries.push_back({{"minecraft:generic_kill"}, {nullptr}});
+            entries.push_back({{"minecraft:hot_floor"}, {nullptr}});
+            entries.push_back({{"minecraft:in_fire"}, {nullptr}});
+            entries.push_back({{"minecraft:in_wall"}, {nullptr}});
+            entries.push_back({{"minecraft:lava"}, {nullptr}});
+            entries.push_back({{"minecraft:lightning_bolt"}, {nullptr}});
+            entries.push_back({{"minecraft:magic"}, {nullptr}});
+            entries.push_back({{"minecraft:on_fire"}, {nullptr}});
+            entries.push_back({{"minecraft:out_of_world"}, {nullptr}});
+            entries.push_back({{"minecraft:outside_border"}, {nullptr}});
+            entries.push_back({{"minecraft:stalagmite"}, {nullptr}});
+            entries.push_back({{"minecraft:starve"}, {nullptr}});
+            entries.push_back({{"minecraft:sweet_berry_bush"}, {nullptr}});
+            entries.push_back({{"minecraft:wither"}, {nullptr}});
+            queue_registry("minecraft:damage_type", std::move(entries));
+
+            queue_registry("minecraft:dialog", std::move(entries));
+
+            entries.push_back({{"minecraft:overworld"}, {nullptr}});
+            queue_registry("minecraft:dimension_type", std::move(entries));
+
+
+            state = configuration_registry;
+            break;
         }
 
         case play: {
@@ -210,6 +284,22 @@ void connection::handle(
         }
     }
 }
+
+void connection::queue_registry(
+    std::string_view name, 
+    std::vector<net_registry_data_entry> 
+        &&entries
+){
+    queue_packet(
+        packet_registry_data(
+            {(uint8_t) packet_id::configuration::registry},
+            {name},
+            {std::move(entries)}
+        )
+    );
+}
+
+
 
 template <typename T>
 void connection::queue_packet(
