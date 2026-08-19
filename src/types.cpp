@@ -2,51 +2,6 @@
 #include <cstring>
 #include <bit>
 
-#define DEFINE_SIMPLE_NET_TYPE(net_name, base_name)       \
-    net_name::net_name(                                   \
-        std::span<uint8_t> &buff                          \
-    ):                                                    \
-        value(read_be<base_name>(buff))                   \
-    {}                                                    \
-                                                          \
-    net_name::net_name(base_type value):                  \
-        value(value)                                      \
-    {}                                                    \
-                                                          \
-    net_name::operator base_type() const {                \
-        return value;                                     \
-    }                                                     \
-                                                          \
-    net_name &net_name::operator=(base_type base){        \
-        value = base;                                     \
-        return *this;                                     \
-    }                                                     \
-                                                          \
-    void net_name::serialize(                             \
-        std::vector<uint8_t> &buff                        \
-    ) const {                                             \
-        write_be<base_name>(buff, value);                 \
-    }                                                     \
-                                                          \
-    size_t net_name::size() const {                       \
-        return sizeof value;                              \
-    }
-
-
-DEFINE_SIMPLE_NET_TYPE(net_boolean, bool);
-DEFINE_SIMPLE_NET_TYPE(net_byte,    int8_t);
-DEFINE_SIMPLE_NET_TYPE(net_ubyte,   uint8_t);
-DEFINE_SIMPLE_NET_TYPE(net_short,   int16_t);
-DEFINE_SIMPLE_NET_TYPE(net_ushort,  uint16_t);
-DEFINE_SIMPLE_NET_TYPE(net_int,     int32_t);
-/* my own addition */
-DEFINE_SIMPLE_NET_TYPE(net_uint,    uint32_t);
-DEFINE_SIMPLE_NET_TYPE(net_long,    int64_t);
-/* my own addition */
-DEFINE_SIMPLE_NET_TYPE(net_ulong,   uint64_t);
-DEFINE_SIMPLE_NET_TYPE(net_float,   float);
-DEFINE_SIMPLE_NET_TYPE(net_double,  double);
-
 net_string::net_string(
     std::span<uint8_t> &buff, size_t n
 ){
