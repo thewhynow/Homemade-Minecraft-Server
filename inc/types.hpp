@@ -207,12 +207,22 @@ struct net_prefixed_optional : net_type {
   }
 
   size_t size() const {
-    return net_boolean(false).size() + (field ? field->size() : 0);
+    return
+        net_boolean(false).size() +
+        (field ? field->size() : 0)
+    ;
   }
 };
 
-struct net_game_profile_property
-    : net_compound<net_string, net_string, net_prefixed_optional<net_string>> {
+struct net_game_profile_property:
+    net_compound<
+        net_string,
+        net_string,
+        net_prefixed_optional<
+            net_string
+        >
+    >
+{
   using net_compound::net_compound;
 
   NET_COMPOUND_FIELD(0, name);
@@ -220,9 +230,15 @@ struct net_game_profile_property
   NET_COMPOUND_FIELD(2, signature);
 };
 
-struct net_game_profile
-    : net_compound<net_uuid, net_string,
-                   net_prefixed_array<net_game_profile_property>> {
+struct net_game_profile:
+    net_compound<
+        net_uuid,
+        net_string,
+        net_prefixed_array<
+            net_game_profile_property
+        >
+    >
+{
   using net_compound::net_compound;
 
   NET_COMPOUND_FIELD(0, uuid);
@@ -240,8 +256,13 @@ struct net_nbt_data : net_type {
   size_t size() const;
 };
 
-struct net_select_known_packs_known_pack
-    : net_compound<net_string, net_string, net_string> {
+struct net_select_known_packs_known_pack:
+    net_compound<
+        net_string,
+        net_string,
+        net_string
+    >
+{
   using net_compound::net_compound;
 
   NET_COMPOUND_FIELD(0, name_space);
