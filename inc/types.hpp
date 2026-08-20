@@ -34,8 +34,10 @@ struct net_simple_type : net_type {
     net_simple_type(B value):
         value(value)
     {}
+
     net_simple_type &operator=(B value){
         this->value = value;
+        return *this;
     }
 
     operator B() const {
@@ -335,10 +337,23 @@ struct net_registry_data_entry:
     NET_COMPOUND_FIELD(1, data);
 };
 
-struct net_position {
+struct net_position : net_type {
     net_long x;
     net_long z;
     net_short y;
 
     net_position(std::span<uint8_t> &buff);
+    void serialize(std::vector<uint8_t> &buff);
+};
+
+struct net_login_death_location :
+    net_compound<
+        net_identifier,
+        net_position
+    >
+{
+    using net_compound::net_compound;
+
+    NET_COMPOUND_FIELD(0, dimension);
+    NET_COMPOUND_FIELD(1, position);
 };

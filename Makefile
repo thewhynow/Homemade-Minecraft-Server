@@ -1,6 +1,7 @@
-CXXFLAGS := -std=c++23 -Wall -Wextra -O3 -I./
+CXXFLAGS := -std=c++23 -Wall -Wextra -O3 -I./ -MMD -MP
 SOURCES  := $(wildcard src/*.cpp)
 OBJECTS  := $(patsubst src/%.cpp,build/%.o,$(SOURCES))
+DEPS     := $(OBJECTS:.o=.d)
 
 .PHONY: all clean run
 
@@ -17,7 +18,10 @@ build:
 
 clean:
 	rm -f $(OBJECTS)
+	rm -f $(DEPS)
 	rm -f main
 
 run: all
 	./main
+
+-include $(DEPS)

@@ -4,28 +4,32 @@
 /* PROTOCOL VERSION 776 */
 
 namespace packet_id {
-    enum class handshake : uint8_t {
+    enum handshake : uint8_t {
         intention = 0
     };
 
-    enum class status : uint8_t {
+    enum status : uint8_t {
         response = 0,
         pong     = 1,
         request  = 0,
         ping     = 1
     };
 
-    enum class login : uint8_t {
+    enum login : uint8_t {
         hello        = 0,
         finished     = 2,
         acknowledged = 3
     };
 
-    enum class configuration : uint8_t {
-        known_client_bound = 7,
-        known_server_bound = 14,
+    enum configuration : uint8_t {
+        known_client_bound = 14,
+        known_server_bound = 7,
         registry           = 7,
         finish             = 3
+    };
+
+    enum play : uint8_t {
+        login = 49,
     };
 };
 
@@ -161,4 +165,71 @@ struct packet_registry_data :
 
     PACKET_FIELD(0, id);
     PACKET_FIELD(1, entries);
+};
+
+struct packet_finish_configuration :
+    packet<>
+{
+    using packet::packet;
+};
+
+struct packet_login : 
+    packet<
+        net_int,
+        net_boolean,
+        net_prefixed_array<
+            net_identifier
+        >,
+        net_var_int,
+        net_var_int,
+        net_var_int,
+        net_boolean,
+        net_boolean,
+        net_boolean,
+        net_var_int,
+        net_identifier,
+        net_long,
+        net_ubyte,
+        net_byte,
+        net_boolean,
+        net_boolean,
+        net_prefixed_optional<
+            net_login_death_location
+        >,
+        net_var_int,
+        net_var_int,
+        net_boolean,
+        net_boolean
+    >
+{
+    using packet::packet;
+
+    PACKET_FIELD(0,  entity_id);
+    PACKET_FIELD(1,  hardcore);
+    PACKET_FIELD(2,  dimension_names);
+    PACKET_FIELD(3,  max_players);
+    PACKET_FIELD(4,  view_distance);
+    PACKET_FIELD(5,  simulation_distance);
+    PACKET_FIELD(6,  reduced_debug_info);
+    PACKET_FIELD(7,  enable_respawn_screen);
+    PACKET_FIELD(8,  limited_crafting);
+    PACKET_FIELD(9,  dimension_type);
+    PACKET_FIELD(10, dimension_name);
+    PACKET_FIELD(11, hashed_seed);
+    PACKET_FIELD(12, game_mode);
+    PACKET_FIELD(13, prev_game_mode);
+    PACKET_FIELD(14, debug_world);
+    PACKET_FIELD(15, flat_world);
+    PACKET_FIELD(16, death_location);
+    PACKET_FIELD(17, portal_cooldown);
+    PACKET_FIELD(18, sea_level);
+    PACKET_FIELD(19, online_mode);
+    PACKET_FIELD(20, enforces_secure_chat);
+
+    enum game_modes : uint8_t {
+        survival  = 0,
+        creative  = 1,
+        adventure = 2,
+        spectator = 3
+    };
 };

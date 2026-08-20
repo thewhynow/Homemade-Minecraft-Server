@@ -5,6 +5,14 @@
 #include <cstdlib>
 #include "inc/packet.hpp"
 #include "inc/errors.hpp"
+#include "inc/registry.hpp"
+
+#include <print>
+
+template <>
+void connection::queue_packet<packet_registry_data>(
+    const packet_registry_data &packet
+);
 
 connection::connection(socket_wrapper &&sock):
     sock(std::move(sock)),
@@ -177,6 +185,8 @@ void connection::handle(
         case login_start: {
             packet_hello packet(buff);
 
+            std::println("made it login_start");
+
             packet_login_finished response {
                 {(uint8_t) packet_id::login::finished},
                 {
@@ -195,6 +205,8 @@ void connection::handle(
         case login_success: {
             packet_login_acknowledged packet(buff);
 
+            std::println("made it login_success");
+
             packet_select_known_packs response {
                 {(uint8_t) packet_id::configuration::known_client_bound},
                 {
@@ -210,7 +222,12 @@ void connection::handle(
         }
 
         case configuration_select: {
+            /**
+             * client sending packets we don't handle -> bad parsing -> freeze
+             **/
             packet_select_known_packs packet(buff);
+
+            std::println("made it here to config_select");
 
             for (const auto &i : packet.known_packs().data)
                 if (
@@ -225,77 +242,38 @@ void connection::handle(
             );
 
         success:
-            std::vector<net_registry_data_entry> entries;
-            /* deduction actually works here */
-            entries.push_back({{"minecraft:pattern_item/bordure_indented"}, {nullptr}});
-            entries.push_back({{"minecraft:pattern_item/creeper"}, {nullptr}});
-            entries.push_back({{"minecraft:pattern_item/field_masoned"}, {nullptr}});
-            entries.push_back({{"minecraft:pattern_item/flow"}, {nullptr}});
-            entries.push_back({{"minecraft:pattern_item/flower"}, {nullptr}});
-            entries.push_back({{"minecraft:pattern_item/globe"}, {nullptr}});
-            entries.push_back({{"minecraft:pattern_item/guster"}, {nullptr}});
-            entries.push_back({{"minecraft:pattern_item/mojang"}, {nullptr}});
-            entries.push_back({{"minecraft:pattern_item/piglin"}, {nullptr}});
-            entries.push_back({{"minecraft:pattern_item/skull"}, {nullptr}});
-            queue_registry("minecraft:banner_pattern", std::move(entries));
-
-            queue_registry("minecraft:chat_type", std::move(entries));
-
-            entries.push_back({{"minecraft:cactus"}, {nullptr}});
-            entries.push_back({{"minecraft:campfire"}, {nullptr}});
-            entries.push_back({{"minecraft:cramming"}, {nullptr}});
-            entries.push_back({{"minecraft:dragon_breath"}, {nullptr}});
-            entries.push_back({{"minecraft:drown"}, {nullptr}});
-            entries.push_back({{"minecraft:dry_out"}, {nullptr}});
-            entries.push_back({{"minecraft:ender_pearl"}, {nullptr}});
-            entries.push_back({{"minecraft:fall"}, {nullptr}});
-            entries.push_back({{"minecraft:fly_into_wall"}, {nullptr}});
-            entries.push_back({{"minecraft:freeze"}, {nullptr}});
-            entries.push_back({{"minecraft:generic"}, {nullptr}});
-            entries.push_back({{"minecraft:generic_kill"}, {nullptr}});
-            entries.push_back({{"minecraft:hot_floor"}, {nullptr}});
-            entries.push_back({{"minecraft:in_fire"}, {nullptr}});
-            entries.push_back({{"minecraft:in_wall"}, {nullptr}});
-            entries.push_back({{"minecraft:lava"}, {nullptr}});
-            entries.push_back({{"minecraft:lightning_bolt"}, {nullptr}});
-            entries.push_back({{"minecraft:magic"}, {nullptr}});
-            entries.push_back({{"minecraft:on_fire"}, {nullptr}});
-            entries.push_back({{"minecraft:out_of_world"}, {nullptr}});
-            entries.push_back({{"minecraft:outside_border"}, {nullptr}});
-            entries.push_back({{"minecraft:stalagmite"}, {nullptr}});
-            entries.push_back({{"minecraft:starve"}, {nullptr}});
-            entries.push_back({{"minecraft:sweet_berry_bush"}, {nullptr}});
-            entries.push_back({{"minecraft:wither"}, {nullptr}});
-            queue_registry("minecraft:damage_type", std::move(entries));
-
-            queue_registry("minecraft:dialog", std::move(entries));
-
-            entries.push_back({{"minecraft:overworld"}, {nullptr}});
-            queue_registry("minecraft:dimension_type", std::move(entries));
-
+            synced_registries::instance.queue_packets(
+                [this](const packet_registry_data &packet) -> void {
+                    queue_packet<packet_registry_data>(packet);
+                }
+            );
 
             state = configuration_registry;
             break;
         }
 
-        case play: {
+        case configuration_registry: {
+            packet_finish_configuration packet (
+                (uint8_t) packet_id::configuration::finish
+            );
 
+            queue_packet(packet);
+
+            state = configuration_finish;
+            break;
+        }
+
+        case configuration_finish: {
+            packet_finish_configuration packet(buff);
+
+            state = play;
+            break;
+        }
+
+        case play: {
+            std::println("made it here");
         }
     }
-}
-
-void connection::queue_registry(
-    std::string_view name, 
-    std::vector<net_registry_data_entry> 
-        &&entries
-){
-    queue_packet(
-        packet_registry_data(
-            {(uint8_t) packet_id::configuration::registry},
-            {name},
-            {std::move(entries)}
-        )
-    );
 }
 
 template <typename T>
@@ -309,4 +287,19 @@ void connection::queue_packet(
         serialized.begin(), 
         serialized.end()
     );
+}
+
+template <>
+void connection::queue_packet<packet_registry_data>(
+    const packet_registry_data &packet
+){
+    std::vector<uint8_t> serialized;
+    packet.serialize(serialized);
+    outbound.insert(
+        outbound.end(), 
+        serialized.begin(), 
+        serialized.end()
+    );
+
+    std::println("sending registry {}", packet.id().value);
 }

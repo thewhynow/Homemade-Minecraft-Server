@@ -23,7 +23,7 @@ public:
         login_success,
         configuration_select,
         configuration_registry,
-        configuation_finish,
+        configuration_finish,
         play
     };
 private:
