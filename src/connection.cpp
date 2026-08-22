@@ -6,13 +6,9 @@
 #include "inc/packet.hpp"
 #include "inc/errors.hpp"
 #include "inc/registry.hpp"
+#include "inc/types.hpp"
 
 #include <print>
-
-template <>
-void connection::queue_packet<packet_registry_data>(
-    const packet_registry_data &packet
-);
 
 connection::connection(socket_wrapper &&sock):
     sock(std::move(sock)),
@@ -185,8 +181,6 @@ void connection::handle(
         case login_start: {
             packet_hello packet(buff);
 
-            std::println("made it login_start");
-
             packet_login_finished response {
                 {(uint8_t) packet_id::login::finished},
                 {
@@ -205,8 +199,6 @@ void connection::handle(
         case login_success: {
             packet_login_acknowledged packet(buff);
 
-            std::println("made it login_success");
-
             packet_select_known_packs response {
                 {(uint8_t) packet_id::configuration::known_client_bound},
                 {
@@ -217,17 +209,46 @@ void connection::handle(
             };
 
             queue_packet(response);
-            state = configuration_select;
+            state = configuration;
             break;
         }
 
-        case configuration_select: {
-            /**
-             * client sending packets we don't handle -> bad parsing -> freeze
-             **/
-            packet_select_known_packs packet(buff);
+        case configuration:
+        case configuration_finish: {
+            handle_configuration(buff);
+            break;
+        }
 
-            std::println("made it here to config_select");
+        case play: {
+            std::println("made it to play");
+        }
+    }
+}
+
+void connection::handle_configuration(
+    std::span<uint8_t> &buff
+){
+    packet_id::configuration id = (packet_id::configuration) buff[0];
+
+    switch (id){
+        case packet_id::configuration::custom_server_bound: {
+            packet_custom_payload_plugin_message packet{buff};
+
+            std::println("custom server bound brand packet");
+
+            packet_custom_payload_plugin_message response {
+                (uint8_t) packet_id::configuration::custom_client_bound,
+                {"minecraft:brand"},
+                {"thewhynow"}
+            };
+
+            queue_packet(response);
+
+            break;
+        };
+
+        case packet_id::configuration::known_server_bound: {
+            packet_select_known_packs packet{buff};
 
             for (const auto &i : packet.known_packs().data)
                 if (
@@ -248,30 +269,64 @@ void connection::handle(
                 }
             );
 
-            state = configuration_registry;
-            break;
-        }
-
-        case configuration_registry: {
-            packet_finish_configuration packet (
-                (uint8_t) packet_id::configuration::finish
+            queue_packet(
+                packet_update_tags {
+                    (uint8_t) packet_id::configuration::update_tags,
+                    {
+                        {
+                            {
+                                {"minecraft:banner_pattern"},
+                                {
+                                    {
+                                        {
+                                            {
+                                                "minecraft:pattern_item/bordure_indented"
+                                            },
+                                            {
+                                                {
+                                                    {0}
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             );
 
-            queue_packet(packet);
+            packet_finish_configuration response {
+                (uint8_t) packet_id::configuration::finish
+            };
+
+            queue_packet(response);
+
+            std::println("sending registry packets");
 
             state = configuration_finish;
             break;
         }
 
-        case configuration_finish: {
+        case packet_id::configuration::client_information: {
+            packet_client_information packet(buff);
+
+            std::println("recieved client information");
+
+            break;
+        }
+
+        case packet_id::configuration::finish: {
             packet_finish_configuration packet(buff);
+
+            std::println("play state activated");
 
             state = play;
             break;
         }
 
-        case play: {
-            std::println("made it here");
+        default: {
+            throw std::runtime_error("bad configuration packet");
         }
     }
 }
@@ -283,23 +338,8 @@ void connection::queue_packet(
     std::vector<uint8_t> serialized;
     packet.serialize(serialized);
     outbound.insert(
-        outbound.end(), 
-        serialized.begin(), 
+        outbound.end(),
+        serialized.begin(),
         serialized.end()
     );
-}
-
-template <>
-void connection::queue_packet<packet_registry_data>(
-    const packet_registry_data &packet
-){
-    std::vector<uint8_t> serialized;
-    packet.serialize(serialized);
-    outbound.insert(
-        outbound.end(), 
-        serialized.begin(), 
-        serialized.end()
-    );
-
-    std::println("sending registry {}", packet.id().value);
 }

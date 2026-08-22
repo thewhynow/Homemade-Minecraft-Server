@@ -103,8 +103,12 @@ struct net_compound : net_type {
     }
 
     size_t size() const {
-        return std::apply([&](auto &...field) { return (field.size() + ... + 0); },
-                          fields);
+        return std::apply(
+            [&](auto &...field){
+                return (field.size() + ... + 0);
+            },
+            fields
+        );
     }
 };
 
@@ -356,4 +360,32 @@ struct net_login_death_location :
 
     NET_COMPOUND_FIELD(0, dimension);
     NET_COMPOUND_FIELD(1, position);
+};
+
+struct net_tag :
+    net_compound<
+        net_identifier,
+        net_prefixed_array<
+            net_var_int
+        >
+    >
+                       {
+    using net_compound::net_compound;
+
+    NET_COMPOUND_FIELD(0, name);
+    NET_COMPOUND_FIELD(1, entries);
+};
+
+struct net_update_tags_tagged_registry :
+    net_compound<
+        net_identifier,
+        net_prefixed_array<
+            net_tag
+        >
+    >
+{
+    using net_compound::net_compound;
+
+    NET_COMPOUND_FIELD(0, registry);
+    NET_COMPOUND_FIELD(1, tags);
 };

@@ -1,21 +1,141 @@
 #include "inc/registry.hpp"
 
+const net_registry_data_entry &registry::operator[]
+    (std::string_view id) const
+{
+    for (const net_registry_data_entry &i : entries().data)
+        if (i.id().value == id)
+            return i;
+
+    throw std::out_of_range("bad id");
+}
+
+const registry &synced_registries::operator[]
+    (std::string_view id) const
+{
+    if (id == "banner_pattern")
+        return banner_pattern;
+
+    if (id == "damage_type")
+        return damage_type;
+
+    if (id == "dimension_type")
+        return dimension_type;
+
+    if (id == "instrument")
+        return instrument;
+
+    if (id == "jukebox_song")
+        return jukebox_song;
+
+    if (id == "painting_variant")
+        return painting_variant;
+
+    if (id == "sulfur_cube_archetype")
+        return sulfur_cube_archetype;
+
+    if (id == "timeline")
+        return timeline;
+
+    if (id == "trim_material")
+        return trim_material;
+
+    if (id == "world_clock")
+        return world_clock;
+
+    if (id == "worldgen_biome")
+        return worldgen_biome;
+
+    if (id == "cat_variant")
+        return cat_variant;
+
+    if (id == "cat_sound_variant")
+        return cat_sound_variant;
+
+    if (id == "chicken_variant")
+        return chicken_variant;
+
+    if (id == "chicken_sound_variant")
+        return chicken_sound_variant;
+
+    if (id == "cow_variant")
+        return cow_variant;
+
+    if (id == "cow_sound_variant")
+        return cow_sound_variant;
+
+    if (id == "frog_variant")
+        return frog_variant;
+
+    if (id == "pig_variant")
+        return pig_variant;
+
+    if (id == "pig_sound_variant")
+        return pig_sound_variant;
+
+    if (id == "wolf_variant")
+        return wolf_variant;
+
+    if (id == "wolf_sound_variant")
+        return wolf_sound_variant;
+
+    if (id == "zmbie_nautilus_variant")
+        return zombie_nautilus_variant;
+
+    throw std::out_of_range("bad registry");
+}
+
+
+
 synced_registries synced_registries::instance;
 
 synced_registries::synced_registries():
     banner_pattern(
         "minecraft:banner_pattern",
         {
-            {{"minecraft:pattern_item/bordure_indented"}, {nullptr}},
-            {{"minecraft:pattern_item/creeper"}, {nullptr}},
-            {{"minecraft:pattern_item/field_masoned"}, {nullptr}},
-            {{"minecraft:pattern_item/flow"}, {nullptr}},
-            {{"minecraft:pattern_item/flower"}, {nullptr}},
-            {{"minecraft:pattern_item/globe"}, {nullptr}},
-            {{"minecraft:pattern_item/guster"}, {nullptr}},
-            {{"minecraft:pattern_item/mojang"}, {nullptr}},
-            {{"minecraft:pattern_item/piglin"}, {nullptr}},
-            {{"minecraft:pattern_item/skull"}, {nullptr}}
+            {{"minecraft:base"}, {nullptr}},
+            {{"minecraft:border"}, {nullptr}},
+            {{"minecraft:bricks"}, {nullptr}},
+            {{"minecraft:circle"}, {nullptr}},
+            {{"minecraft:creeper"}, {nullptr}},
+            {{"minecraft:cross"}, {nullptr}},
+            {{"minecraft:curly_border"}, {nullptr}},
+            {{"minecraft:diagonal_left"}, {nullptr}},
+            {{"minecraft:diagonal_right"}, {nullptr}},
+            {{"minecraft:diagonal_up_left"}, {nullptr}},
+            {{"minecraft:diagonal_up_right"}, {nullptr}},
+            {{"minecraft:flow"}, {nullptr}},
+            {{"minecraft:flower"}, {nullptr}},
+            {{"minecraft:globe"}, {nullptr}},
+            {{"minecraft:gradient"}, {nullptr}},
+            {{"minecraft:gradient_up"}, {nullptr}},
+            {{"minecraft:guster"}, {nullptr}},
+            {{"minecraft:half_horizontal"}, {nullptr}},
+            {{"minecraft:half_horizontal_bottom"}, {nullptr}},
+            {{"minecraft:half_vertical"}, {nullptr}},
+            {{"minecraft:half_vertical_right"}, {nullptr}},
+            {{"minecraft:mojang"}, {nullptr}},
+            {{"minecraft:piglin"}, {nullptr}},
+            {{"minecraft:rhombus"}, {nullptr}},
+            {{"minecraft:skull"}, {nullptr}},
+            {{"minecraft:small_stripes"}, {nullptr}},
+            {{"minecraft:square_bottom_left"}, {nullptr}},
+            {{"minecraft:square_bottom_right"}, {nullptr}},
+            {{"minecraft:square_top_left"}, {nullptr}},
+            {{"minecraft:square_top_right"}, {nullptr}},
+            {{"minecraft:straight_cross"}, {nullptr}},
+            {{"minecraft:stripe_bottom"}, {nullptr}},
+            {{"minecraft:stripe_center"}, {nullptr}},
+            {{"minecraft:stripe_downleft"}, {nullptr}},
+            {{"minecraft:stripe_downright"}, {nullptr}},
+            {{"minecraft:stripe_left"}, {nullptr}},
+            {{"minecraft:stripe_middle"}, {nullptr}},
+            {{"minecraft:stripe_right"}, {nullptr}},
+            {{"minecraft:stripe_top"}, {nullptr}},
+            {{"minecraft:triangle_bottom"}, {nullptr}},
+            {{"minecraft:triangle_top"}, {nullptr}},
+            {{"minecraft:triangles_bottom"}, {nullptr}},
+            {{"minecraft:triangles_top"}, {nullptr}}
         }
     ),
 
@@ -95,7 +215,7 @@ synced_registries::synced_registries():
     painting_variant(
         "minecraft:painting_variant",
         {
-            {{"meditative"}, {nullptr}}
+            {{"minecraft:meditative"}, {nullptr}}
         }
     ),
 
@@ -103,6 +223,16 @@ synced_registries::synced_registries():
         "minecraft:sulfur_cube_archetype",
         {
             {{"minecraft:regular"}, {nullptr}}
+        }
+    ),
+
+    timeline(
+        "minecraft:timeline",
+        {
+            {{"minecraft:day"}, {nullptr}},
+            {{"minecraft:early_game"}, {nullptr}},
+            {{"minecraft:moon"}, {nullptr}},
+            {{"minecraft:villager_schedule"}, {nullptr}}
         }
     ),
 
@@ -123,6 +253,14 @@ synced_registries::synced_registries():
         }
     ),
 
+    world_clock(
+        "minecraft:world_clock",
+        {
+            {{"minecraft:overworld"}, {nullptr}},
+            {{"minecraft:the_end"}, {nullptr}}
+        }
+    ),
+
     worldgen_biome(
         "minecraft:worldgen/biome",
         {
@@ -133,7 +271,7 @@ synced_registries::synced_registries():
     cat_variant(
         "minecraft:cat_variant",
         {
-            {{"white"}, {nullptr}},
+            {{"minecraft:white"}, {nullptr}},
         }
     ),
 
@@ -156,7 +294,7 @@ synced_registries::synced_registries():
     chicken_sound_variant(
         "minecraft:chicken_sound_variant",
         {
-            {{"classic"}, {nullptr}},
+            {{"minecraft:classic"}, {nullptr}},
         }
     ),
 
@@ -227,7 +365,9 @@ void synced_registries::queue_packets(
     callback(jukebox_song);
     callback(painting_variant);
     callback(sulfur_cube_archetype);
+    callback(timeline);
     callback(trim_material);
+    callback(world_clock);
     callback(worldgen_biome);
     callback(cat_variant);
     callback(cat_sound_variant);

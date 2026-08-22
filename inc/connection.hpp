@@ -17,27 +17,25 @@ public:
         dead,
         handshake,
         status_request,
-        status_response,
         status_ping,
         login_start,
         login_success,
-        configuration_select,
-        configuration_registry,
+        configuration,
         configuration_finish,
         play
     };
 private:
-    void handle(std::span<uint8_t> &&buff);
-
     template<typename T>
     void queue_packet(const T &packet);
 
-    void queue_registry(
-        std::string_view name, 
-        std::vector<net_registry_data_entry> 
-            &&entries
+    /* only used with an r-value */
+    void handle(std::span<uint8_t> &&buff);
+
+    void handle_configuration(
+        std::span<uint8_t> &buff
     );
 
+    void handle_play(std::span<uint8_t> &buff);
 private:
     socket_wrapper sock;
     connection_state state;

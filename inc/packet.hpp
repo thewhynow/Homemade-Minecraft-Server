@@ -22,10 +22,14 @@ namespace packet_id {
     };
 
     enum configuration : uint8_t {
-        known_client_bound = 14,
-        known_server_bound = 7,
-        registry           = 7,
-        finish             = 3
+        known_client_bound  = 14,
+        known_server_bound  = 7,
+        registry            = 7,
+        finish              = 3,
+        custom_client_bound = 1,
+        custom_server_bound = 2,
+        client_information  = 0,
+        update_tags         = 13,
     };
 
     enum play : uint8_t {
@@ -173,6 +177,71 @@ struct packet_finish_configuration :
     using packet::packet;
 };
 
+struct packet_custom_payload_plugin_message:
+    packet<
+        net_identifier,
+        net_string
+    >
+{
+    using packet::packet;
+
+    PACKET_FIELD(0, channel);
+    PACKET_FIELD(1, brand);
+};
+
+struct packet_client_information :
+    packet<
+        net_string,
+        net_byte,
+        net_var_int,
+        net_boolean,
+        net_ubyte,
+        net_var_int,
+        net_boolean,
+        net_boolean,
+        net_var_int
+    >
+{
+    using packet::packet;
+
+    PACKET_FIELD(0, locale);
+    PACKET_FIELD(1, view_distance);
+    PACKET_FIELD(2, chat_mode);
+    PACKET_FIELD(3, chat_colors);
+    PACKET_FIELD(4, skin_parts);
+    PACKET_FIELD(5, hand);
+    PACKET_FIELD(6, text_filtering);
+    PACKET_FIELD(7, server_listings);
+    PACKET_FIELD(8, particles);
+
+    enum chat_modes {
+        enabled = 0,
+        commands = 1,
+        hidden = 2
+    };
+
+    enum skin_parts_masks : uint8_t {
+        cape         = 0x01,
+        jacket       = 0x02,
+        left_sleeve  = 0x04,
+        right_sleeve = 0x08,
+        left_pants   = 0x10,
+        right_pants  = 0x20,
+        hat          = 0x40
+    };
+
+    enum main_hand {
+        left  = 0,
+        right = 1
+    };
+
+    enum particle_statuses {
+        all       = 0,
+        decreased = 1,
+        minimal   = 2
+    };
+};
+
 struct packet_login : 
     packet<
         net_int,
@@ -232,4 +301,16 @@ struct packet_login :
         adventure = 2,
         spectator = 3
     };
+};
+
+struct packet_update_tags :
+    packet<
+        net_prefixed_array<
+            net_update_tags_tagged_registry
+        >
+    >
+{
+    using packet::packet;
+
+    PACKET_FIELD(0, tagged_registries);
 };

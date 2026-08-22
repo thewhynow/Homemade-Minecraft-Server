@@ -16,8 +16,11 @@ void server::start(){
             throw std::runtime_error("poll(2) failed");
 
         if (pollfds[0].revents & POLLIN)
-            try { accept_connection(); }
-            catch (const failed_accept &) {}
+            try {
+                accept_connection();
+            }
+            catch (const failed_accept &)
+            {}
 
         for (size_t i = 1; i < pollfds.size(); ++i){
             if (pollfds[i].revents & POLLOUT){
