@@ -265,9 +265,19 @@ void connection::handle_configuration(
         success:
             synced_registries::instance.queue_packets(
                 [this](const packet_registry_data &packet) -> void {
-                    queue_packet<packet_registry_data>(packet);
+                    queue_packet(packet);
                 }
             );
+
+            const registry &banner_pattern_reg =
+                synced_registries::instance["banner_pattern"]
+            ;
+            const registry &damage_type_reg =
+                synced_registries::instance["damage_type"]
+            ;
+            const registry &timeline_reg =
+                synced_registries::instance["timeline"]
+            ;
 
             queue_packet(
                 packet_update_tags {
@@ -276,21 +286,180 @@ void connection::handle_configuration(
                         {
                             {
                                 {"minecraft:banner_pattern"},
-                                {
+                                {{
                                     {
-                                        {
-                                            {
-                                                "minecraft:pattern_item/bordure_indented"
-                                            },
-                                            {
-                                                {
-                                                    {0}
-                                                }
-                                            }
-                                        }
+                                        {"minecraft:pattern_item/bordure_indented"},
+                                        {{{banner_pattern_reg["minecraft:curly_border"]}}}
+                                    },
+                                    {
+                                        {"minecraft:pattern_item/creeper"},
+                                        {{{banner_pattern_reg["minecraft:creeper"]}}}
+                                    },
+                                    {
+                                        {"minecraft:pattern_item/field_masoned"},
+                                        {{{banner_pattern_reg["minecraft:bricks"]}}}
+                                    },
+                                    {
+                                        {"minecraft:pattern_item/flow"},
+                                        {{{banner_pattern_reg["minecraft:flow"]}}}
+                                    },
+                                    {
+                                        {"minecraft:pattern_item/flower"},
+                                        {{{banner_pattern_reg["minecraft:flower"]}}}
+                                    },
+                                    {
+                                        {"minecraft:pattern_item/globe"},
+                                        {{{banner_pattern_reg["minecraft:globe"]}}}
+                                    },
+                                    {
+                                        {"minecraft:pattern_item/guster"},
+                                        {{{banner_pattern_reg["minecraft:guster"]}}}
+                                    },
+                                    {
+                                        {"minecraft:pattern_item/mojang"},
+                                        {{{banner_pattern_reg["minecraft:mojang"]}}}
+                                    },
+                                    {
+                                        {"minecraft:pattern_item/piglin"},
+                                        {{{banner_pattern_reg["minecraft:piglin"]}}}
+                                    },
+                                    {
+                                        {"minecraft:pattern_item/skull"},
+                                        {{{banner_pattern_reg["minecraft:skull"]}}}
+                                    },
+                                }}
+                            },
+                            {
+                                {"minecraft:damage_type"},
+                                {{
+                                    {
+                                        {"minecraft:bypasses_shield"},
+                                        {{
+                                            {damage_type_reg["minecraft:cramming"]},
+                                            {damage_type_reg["minecraft:dragon_breath"]},
+                                            {damage_type_reg["minecraft:drown"]},
+                                            {damage_type_reg["minecraft:ender_pearl"]},
+                                            {damage_type_reg["minecraft:fall"]},
+                                            {damage_type_reg["minecraft:fly_into_wall"]},
+                                            {damage_type_reg["minecraft:freeze"]},
+                                            {damage_type_reg["minecraft:generic"]},
+                                            {damage_type_reg["minecraft:generic_kill"]},
+                                            {damage_type_reg["minecraft:in_wall"]},
+                                            {damage_type_reg["minecraft:magic"]},
+                                            {damage_type_reg["minecraft:on_fire"]},
+                                            {damage_type_reg["minecraft:out_of_world"]},
+                                            {damage_type_reg["minecraft:outside_border"]},
+                                            {damage_type_reg["minecraft:stalagmite"]},
+                                            {damage_type_reg["minecraft:starve"]},
+                                            {damage_type_reg["minecraft:wither"]},
+                                            {damage_type_reg["minecraft:cactus"]},
+                                            {damage_type_reg["minecraft:campfire"]},
+                                            {damage_type_reg["minecraft:dry_out"]},
+                                            {damage_type_reg["minecraft:hot_floor"]},
+                                            {damage_type_reg["minecraft:in_fire"]},
+                                            {damage_type_reg["minecraft:lava"]},
+                                            {damage_type_reg["minecraft:lightning_bolt"]},
+                                            {damage_type_reg["minecraft:sweet_berry_bush"]},
+                                        }}
+                                    },
+                                    {
+                                        {"minecraft:is_explosion"},
+                                        {{/* empty */}}
+                                    },
+                                    {
+                                        {"minecraft:is_fire"},
+                                        {{
+                                            {damage_type_reg["minecraft:campfire"]},
+                                            {damage_type_reg["minecraft:hot_floor"]},
+                                            {damage_type_reg["minecraft:in_fire"]},
+                                            {damage_type_reg["minecraft:lava"]},
+                                            {damage_type_reg["minecraft:on_fire"]},
+                                        }}
                                     }
-                                }
-                            }
+                                }}
+                            },
+                            {
+                                {"minecraft:timeline"},
+                                {{
+                                    {
+                                        {"minecraft:in_overworld"},
+                                        {{
+                                            {timeline_reg["minecraft:day"]},
+                                            {timeline_reg["minecraft:moon"]},
+                                            {timeline_reg["minecraft:early_game"]},
+                                            {timeline_reg["minecraft:villager_schedule"]},
+                                        }}
+                                    }
+                                }}
+                            },
+                            /*
+                                entries of tags on built-in registries are
+                                numeric ids, taken from reports/registries.json
+                                (26.2). they must be regenerated on a version
+                                bump.
+                            */
+                            {
+                                {"minecraft:block"},
+                                {{
+                                    {
+                                        {"minecraft:infiniburn_overworld"},
+                                        {{
+                                            {285}, /* minecraft:netherrack */
+                                            {671}, /* minecraft:magma_block */
+                                        }}
+                                    }
+                                }}
+                            },
+                            {
+                                {"minecraft:item"},
+                                {{
+                                    {
+                                        {"minecraft:sulfur_cube_archetype/regular"},
+                                        {{
+                                            {658}, /* minecraft:white_concrete_powder */
+                                            {659}, /* minecraft:orange_concrete_powder */
+                                            {660}, /* minecraft:magenta_concrete_powder */
+                                            {661}, /* minecraft:light_blue_concrete_powder */
+                                            {662}, /* minecraft:yellow_concrete_powder */
+                                            {663}, /* minecraft:lime_concrete_powder */
+                                            {664}, /* minecraft:pink_concrete_powder */
+                                            {665}, /* minecraft:gray_concrete_powder */
+                                            {666}, /* minecraft:light_gray_concrete_powder */
+                                            {667}, /* minecraft:cyan_concrete_powder */
+                                            {668}, /* minecraft:purple_concrete_powder */
+                                            {669}, /* minecraft:blue_concrete_powder */
+                                            {670}, /* minecraft:brown_concrete_powder */
+                                            {671}, /* minecraft:green_concrete_powder */
+                                            {672}, /* minecraft:red_concrete_powder */
+                                            {673}, /* minecraft:black_concrete_powder */
+                                            {59}, /* minecraft:mud */
+                                            {171}, /* minecraft:muddy_mangrove_roots */
+                                            {407}, /* minecraft:packed_mud */
+                                            {110}, /* minecraft:coal_block */
+                                            {55}, /* minecraft:dirt */
+                                            {56}, /* minecraft:coarse_dirt */
+                                            {58}, /* minecraft:rooted_dirt */
+                                            {57}, /* minecraft:podzol */
+                                            {54}, /* minecraft:grass_block */
+                                            {370}, /* minecraft:clay */
+                                            {607}, /* minecraft:bone_block */
+                                        }}
+                                    }
+                                }}
+                            },
+                            {
+                                {"minecraft:worldgen/biome"},
+                                {{
+                                    {
+                                        {"minecraft:spawns_cold_variant_farm_animals"},
+                                        {{/* empty */}}
+                                    },
+                                    {
+                                        {"minecraft:spawns_warm_variant_farm_animals"},
+                                        {{/* empty */}}
+                                    }
+                                }}
+                            },
                         }
                     }
                 }

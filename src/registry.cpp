@@ -1,10 +1,10 @@
 #include "inc/registry.hpp"
 
-const net_registry_data_entry &registry::operator[]
+int registry::operator[]
     (std::string_view id) const
 {
-    for (const net_registry_data_entry &i : entries().data)
-        if (i.id().value == id)
+    for (size_t i = 0; i < entries().data.size(); ++i)
+        if (id == entries().data[i].id().value)
             return i;
 
     throw std::out_of_range("bad id");
@@ -79,13 +79,11 @@ const registry &synced_registries::operator[]
     if (id == "wolf_sound_variant")
         return wolf_sound_variant;
 
-    if (id == "zmbie_nautilus_variant")
+    if (id == "zombie_nautilus_variant")
         return zombie_nautilus_variant;
 
     throw std::out_of_range("bad registry");
 }
-
-
 
 synced_registries synced_registries::instance;
 
@@ -163,6 +161,7 @@ synced_registries::synced_registries():
             {{"minecraft:on_fire"}, {nullptr}},
             {{"minecraft:out_of_world"}, {nullptr}},
             {{"minecraft:outside_border"}, {nullptr}},
+            {{"minecraft:spear"}, {nullptr}},
             {{"minecraft:stalagmite"}, {nullptr}},
             {{"minecraft:starve"}, {nullptr}},
             {{"minecraft:sweet_berry_bush"}, {nullptr}},

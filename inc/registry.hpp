@@ -23,9 +23,7 @@ struct registry : packet_registry_data {
             entries().data.push_back(std::move(i));
     }
 
-    const net_registry_data_entry &operator[]
-        (std::string_view id) const
-    ;
+    int operator[] (std::string_view id) const ;
 };
 
 class synced_registries {
