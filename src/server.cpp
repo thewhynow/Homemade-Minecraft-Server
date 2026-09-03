@@ -7,11 +7,11 @@ server::server() = default;
 void server::start(){
     set_main_fd();
 
-    /* pollfds[0] is the main socket */
-    pollfds.emplace_back(sfd, POLLIN, 0);
-
     while (true){
-        int err = poll(pollfds.data(), pollfds.size(), -1);
+        pollfds.insert(pollfds.begin(), spollfd);
+
+        /* 20 ticks / s -> 50 ms / tick */
+        int err = poll(pollfds.data(), pollfds.size(), 50);
         if (err < 0)
             throw std::runtime_error("poll(2) failed");
 
@@ -22,21 +22,23 @@ void server::start(){
             catch (const failed_accept &)
             {}
 
-        for (size_t i = 1; i < pollfds.size(); ++i){
-            if (pollfds[i].revents & POLLOUT){
-                connections[i - 1].on_write();
+        pollfds.erase(pollfds.begin());
 
-                if (!connections[i - 1].has_outbound_data())
+        for (size_t i = 0; i < pollfds.size() - 1; ++i){
+            if (pollfds[i].revents & POLLOUT){
+                connections[i].on_write();
+
+                if (!connections[i].has_outbound_data())
                     pollfds[i].events &= ~POLLOUT;
             }
 
-            if (connections[i - 1].is_dead())
+            if (connections[i].is_dead())
                 continue;
 
             if (pollfds[i].revents & POLLIN)
-                connections[i - 1].on_read();
+                connections[i].on_read();
 
-            if (connections[i - 1].has_outbound_data())
+            if (connections[i].has_outbound_data())
                 pollfds[i].events |= POLLOUT;
         }
 
@@ -92,11 +94,11 @@ void server::set_main_fd(){
             std::string("listen: ") + strerror(errno)
         );
 
-    sfd = fd;
+    spollfd = pollfd{fd, POLLIN, 0};
 }
 
 void server::accept_connection(){
-    socket_wrapper sock(sfd);
+    socket_wrapper sock(spollfd.fd);
     pollfds.emplace_back(sock.get_fd(), POLLIN, 0);
     connections.emplace_back(std::move(sock));
 }

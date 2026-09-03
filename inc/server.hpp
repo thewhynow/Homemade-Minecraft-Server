@@ -20,7 +20,7 @@ private:
     void accept_connection();
     void remove_connections();
 private:
-    int sfd;
+    pollfd spollfd;
     std::vector<pollfd> pollfds;
     std::vector<connection> connections;
 };
