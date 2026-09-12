@@ -3,6 +3,7 @@
 #include "nbt.hpp"
 #include "utils.hpp"
 #include <algorithm>
+#include <cmath>
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
@@ -11,7 +12,9 @@
 #include <string>
 #include <type_traits>
 #include <utility>
+#include <variant>
 #include <vector>
+#include <set>
 
 struct net_type {
     void serialize(std::vector<uint8_t> &buff) const;
@@ -389,3 +392,111 @@ struct net_update_tags_tagged_registry :
     NET_COMPOUND_FIELD(0, registry);
     NET_COMPOUND_FIELD(1, tags);
 };
+
+struct net_paletted_container_structure_single :
+    net_compound<
+        net_var_int
+    >
+{
+    using net_compound::net_compound;
+
+    NET_COMPOUND_FIELD(0, value);
+};
+
+struct net_paletted_container_structure_indirect :
+    net_compound<
+        net_prefixed_array<net_var_int>
+    >
+{
+    using net_compound::net_compound;
+
+    NET_COMPOUND_FIELD(0, palette);
+};
+
+struct net_paletted_container_structure_direct :
+    net_compound<>
+{};
+
+template <bool Blocks>
+struct net_paletted_container_structure : net_type {
+    net_ubyte bits_per_entry;
+
+    std::variant<
+        net_paletted_container_structure_single,
+        net_paletted_container_structure_indirect,
+        net_paletted_container_structure_direct
+    > palette;
+
+    std::vector<uint16_t> data;
+
+    net_paletted_container_structure(
+        const std::vector<uint16_t> &data
+    ){
+        std::set<int16_t> uniques {data.begin(), data.end()};
+
+        if (uniques.size() == 1){
+            bits_per_entry = 0;
+            palette = net_paletted_container_structure_single {
+                {data[0]}
+            };
+            return;
+        }
+
+        bits_per_entry = ceil(log2(uniques.size()));
+
+        if constexpr (Blocks){
+            if (4 <= bits_per_entry && bits_per_entry <= 8)
+                palette = net_paletted_container_structure_indirect {
+                    {{uniques.begin(), uniques.end()}}
+                };
+            else if (bits_per_entry == 15)
+                palette = net_paletted_container_structure_direct {};
+            else
+                throw std::runtime_error("too many bits per entry");
+        }
+        else {
+            if (1 <= bits_per_entry && bits_per_entry <= 3)
+                palette = net_paletted_container_structure_indirect {
+                    {{uniques.begin(), uniques.end()}}
+                };
+            else if (bits_per_entry == 7)
+                palette = net_paletted_container_structure_direct {};
+            else
+                throw std::runtime_error("too many bits per entry");
+        }
+
+        if (
+            std::holds_alternative<
+                net_paletted_container_structure_indirect
+            >(palette)
+        )
+            for (uint16_t val : data)
+                this->data.emplace_back(std::distance(
+                    uniques.begin(), uniques.find(val)
+                ));
+        else if (
+            std::holds_alternative<
+                net_paletted_container_structure_direct
+            >(palette)
+        )
+            for (uint16_t val : data)
+                this->data.push_back(val);
+    }
+
+    net_paletted_container_structure(std::span<uint8_t> &buff):
+        bits_per_entry(buff)
+    {
+        /* TODO */
+    }
+
+    void serialize(std::vector<uint8_t> &buff);
+    size_t size();
+};
+
+using net_paletted_container_structure_blocks =
+    net_paletted_container_structure<true>
+;
+
+using net_paletted_container_structure_biomes = 
+    net_paletted_container_structure<false>
+;
