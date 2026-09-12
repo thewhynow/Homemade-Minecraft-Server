@@ -2,3 +2,4 @@ build
 main
 *.txt
 .*
+docs
