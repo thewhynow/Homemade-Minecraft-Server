@@ -24,7 +24,7 @@ void server::start(){
 
         pollfds.erase(pollfds.begin());
 
-        for (size_t i = 0; i < pollfds.size() - 1; ++i){
+        for (size_t i = 0; i < pollfds.size(); ++i){
             if (pollfds[i].revents & POLLOUT){
                 connections[i].on_write();
 
@@ -111,7 +111,7 @@ void server::remove_connections(){
         )
             continue;
 
-        pollfds.erase(pollfds.begin() + i + 1);
+        pollfds.erase(pollfds.begin() + i);
         connections.erase(connections.begin() + i);
         --i;
     }
