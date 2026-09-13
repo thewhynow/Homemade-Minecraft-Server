@@ -10,12 +10,10 @@ public:
     net_uuid id;
     std::string name;
 
-    std::weak_ptr<connection> conn;
+    connection conn;
 
     net_position pos;
     net_position sent_pos;
 
     int32_t view_distance;
-
-    
 };

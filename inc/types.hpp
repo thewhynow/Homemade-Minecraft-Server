@@ -424,8 +424,9 @@ struct net_paletted_container_structure : net_type {
         return max_indirect < bits_per_entry;
     }
 
+    template <size_t S>
     net_paletted_container_structure(
-        const std::vector<uint32_t> &data_arr
+        const std::array<uint32_t, S> &data_arr
     ):
         bits_per_entry(0),
         palette({})
@@ -569,8 +570,29 @@ struct net_bitset :
 {
     using net_prefixed_array::net_prefixed_array;
 
-    bool operator[] (size_t i) const {
-        return !!(data[i / 64] & (1 << (i % 64)));
+    struct bit_ref {
+        uint64_t *quad;
+        uint8_t bit;
+
+        operator bool() const {
+            return !!(*quad >> bit);
+        }
+
+        bit_ref &operator= (bool value){
+            if (value)
+                *quad |= 1 << bit;
+            else
+                *quad &= ~(1 << bit);
+
+            return *this;
+        }
+    };
+
+    bit_ref operator[] (size_t i) {
+        return bit_ref {
+            (uint64_t*) &data[i / 64],
+            (uint8_t) (i % 64)
+        };
     }
 };
 
