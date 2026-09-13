@@ -189,5 +189,5 @@ net_position::net_position(std::span<uint8_t> &buff):
 }
 
 net_paletted_container_structure_blocks test{
-    std::vector<uint16_t>{1, 1, 1, 1, 1}
+    std::vector<uint32_t>{1, 1, 1, 1, 1}
 };

@@ -12,9 +12,9 @@
 #include <string>
 #include <type_traits>
 #include <utility>
-#include <variant>
 #include <vector>
 #include <set>
+#include <ranges>
 
 struct net_type {
     void serialize(std::vector<uint8_t> &buff) const;
@@ -419,282 +419,138 @@ struct net_paletted_container_structure_direct :
 
 template <bool Blocks>
 struct net_paletted_container_structure : net_type {
-    static constexpr size_t  entry_count  = Blocks ? 4096 : 64;
+    static constexpr size_t  num_entries  = Blocks ? 4096 : 64;
     static constexpr uint8_t min_indirect = Blocks ? 4 : 1;
     static constexpr uint8_t max_indirect = Blocks ? 8 : 3;
     static constexpr uint8_t direct_bits  = Blocks ? 15 : 7;
     net_ubyte bits_per_entry;
+    uint8_t entries_per_long;
+    size_t num_longs;
+    uint64_t entry_mask;
 
-    /* palette ID's, wire order; direct -> empty */
-    std::vector<uint32_t> _palette;
+    /* palette ID's; direct -> empty */
+    net_prefixed_array<net_var_int> palette;
     /* always palette ID's, not local indices */
     std::vector<uint32_t> data;
 
-    std::variant<
-        net_paletted_container_structure_single,
-        net_paletted_container_structure_indirect,
-        net_paletted_container_structure_direct
-    > palette;
-
-    /**
-     * stores the raw ID's - NOT the mapped ones
-     */
-
-    net_paletted_container_structure(
-        const std::vector<uint32_t> &data
-    ):
-        bits_per_entry(0),
-        palette(net_paletted_container_structure_direct{})
-    {
-        std::set<int32_t> uniques {data.begin(), data.end()};
-
-        if (uniques.size() == 1){
-            bits_per_entry = 0;
-            palette = net_paletted_container_structure_single {
-                {(int) data[0]}
-            };
-            return;
-        }
-
-        bits_per_entry = ceil(log2(uniques.size()));
-
-        if constexpr (Blocks){
-            if (bits_per_entry <= 8){
-                if (bits_per_entry < 4)
-                    bits_per_entry = 4;
-
-                palette = net_paletted_container_structure_indirect {
-                    {{uniques.begin(), uniques.end()}}
-                };
-            }
-            else if (bits_per_entry <= 15){
-                if (bits_per_entry < 15)
-                    bits_per_entry = 15;
-
-                palette = net_paletted_container_structure_direct {};
-            }
-            else
-                throw std::runtime_error("too many bits per entry");
-        }
-        else {
-            if (bits_per_entry <= 3){
-                if (bits_per_entry < 3)
-                    bits_per_entry = 3;
-
-                palette = net_paletted_container_structure_indirect {
-                    {{uniques.begin(), uniques.end()}}
-                };
-            }
-            else if (bits_per_entry <= 7){
-                if (bits_per_entry < 7)
-                    bits_per_entry = 7;
-
-                palette = net_paletted_container_structure_direct {};
-            }
-            else
-                throw std::runtime_error("too many bits per entry");
-        }
-
-        this->data = data;
+    bool is_single(){
+        return bits_per_entry == 0;
     }
 
-    net_paletted_container_structure(std::span<uint8_t> &buff):
-        bits_per_entry(buff)
+    bool is_indirect(){
+        return
+            1 <= bits_per_entry &&
+            bits_per_entry <= max_indirect
+        ;
+    }
+
+    bool is_direct(){
+        return max_indirect < bits_per_entry;
+    }
+
+    net_paletted_container_structure(
+        const std::vector<uint32_t> &data_arr
+    ):
+        bits_per_entry(0),
+        palette({})
     {
+        std::set<int32_t> uniques {data_arr.begin(), data_arr.end()};
+        bits_per_entry = ceil(log2(uniques.size()));
 
-        if (bits_per_entry == 0){
-            palette = net_paletted_container_structure_single {buff};
-            return;
+        entries_per_long = 64 / bits_per_entry;
+        num_longs = (num_entries + entries_per_long - 1) / entries_per_long;
+        entry_mask = ((uint64_t)1 << bits_per_entry) - 1;
+
+        if (is_single())
+            palette = {{data_arr[0]}};
+        else if (is_indirect()){
+            palette = {{uniques.begin(), uniques.end()}};
+
+            data.reserve(data_arr.size());
+            for (uint32_t val : data_arr)
+                data.push_back(
+                    std::distance(
+                        uniques.begin(), uniques.find(val)
+                    )
+                );
         }
-
-        if constexpr (Blocks){
-            if (bits_per_entry <= 8){
-                if (bits_per_entry < 4)
-                    bits_per_entry = 4;
-
-                palette = net_paletted_container_structure_indirect {buff};
-            }
-            else if (bits_per_entry <= 15){
-                if (bits_per_entry < 15)
-                    bits_per_entry = 15;
-
-                palette = net_paletted_container_structure_direct {};
-            }
-            else
-                throw std::runtime_error("too many bits per entry");
+        else /* if (is_direct()) */ {
+            palette = {{}};
+            data = data_arr;
         }
-        else {
-            if (bits_per_entry <= 3){
-                if (bits_per_entry < 3)
-                    bits_per_entry = 3;
+   }
 
-                palette = net_paletted_container_structure_indirect {buff};
-            }
-            else if (bits_per_entry <= 7){
-                if (bits_per_entry < 7)
-                    bits_per_entry = 7;
-
-                palette = net_paletted_container_structure_direct {};
-            }
-            else
-                throw std::runtime_error("too many bits per entry");
-        }
-
-        size_t num_of_entries;
-        if constexpr (Blocks)
-            num_of_entries = 4096;
-        else
-            num_of_entries = 64;
-
-        if (
-            std::holds_alternative<net_paletted_container_structure_single>(palette)
-        ){
-            net_paletted_container_structure_single &single_palette =
-                std::get<net_paletted_container_structure_single>(palette)
-            ;
-
-            for (size_t i = 0; i < num_of_entries; ++i)
-                data.push_back(single_palette.value());
+    net_paletted_container_structure(std::span<uint8_t> &buff):
+        bits_per_entry(buff),
+        palette({}),
+        entries_per_long(64 / bits_per_entry),
+        num_longs((num_entries + entries_per_long - 1) / entries_per_long),
+        entry_mask(((uint64_t)1 << bits_per_entry) - 1)
+    {
+        if (is_single()){
+            net_var_int value {buff};
+            palette.data.emplace_back(value);
         }
         else {
-            uint8_t entries_per_long = 64 / bits_per_entry;
-            size_t num_longs = (num_of_entries + entries_per_long - 1) / entries_per_long;
-            uint64_t entry_mask = ((uint64_t)1 << bits_per_entry) - 1;
+            if (is_indirect())
+                palette = {buff};
+            else /* if (is_direct()) */
+                palette = {{}};
 
+            data.reserve(num_entries);
             size_t entry_index = 0;
-
             for (size_t i = 0; i < num_longs; ++i){
                 net_long l{buff};
 
                 for (uint8_t j = 0; j < entries_per_long; ++j){
-                    uint8_t bit_index = entry_index % entries_per_long * bits_per_entry;
+                    uint8_t bit_index =
+                        entry_index % entries_per_long * bits_per_entry;
                     uint32_t val = (l >> bit_index) & entry_mask;
 
-                    if (
-                        std::holds_alternative<net_paletted_container_structure_indirect>(palette)
-                    ){
-                        net_paletted_container_structure_indirect &indirect_palette =
-                            std::get<net_paletted_container_structure_indirect>(palette)
-                        ;
-                        data.push_back(indirect_palette.palette().data[val]);
-                    }
-                    else if (
-                        std::holds_alternative<net_paletted_container_structure_direct>(palette)
-                    ){
-                        data.push_back(val);
-                    }
+                    if (is_indirect())
+                        data.emplace_back(palette.data[val]);
+                    else /* if (is_direct()) */
+                        data.emplace_back(val);
 
                     ++entry_index;
                 }
             }
- 
         }
     }
 
     void serialize(std::vector<uint8_t> &buff) const {
         bits_per_entry.serialize(buff);
 
-        if (
-            std::holds_alternative<net_paletted_container_structure_single>(palette)
-        )
-            std::get<net_paletted_container_structure_single>(palette).serialize(buff);
-        else if (
-            std::holds_alternative<net_paletted_container_structure_indirect>(palette)
-        ){
-            const net_paletted_container_structure_indirect &indirect_palette = 
-                std::get<net_paletted_container_structure_indirect>(palette)
-            ;
-
-            indirect_palette.serialize(buff);
-
-            size_t num_of_entries;
-            if constexpr (Blocks)
-                num_of_entries = 4096;
-            else
-                num_of_entries = 64;
-
-            uint8_t entries_per_long = 64 / bits_per_entry;
-            size_t num_longs = (num_of_entries + entries_per_long - 1) / entries_per_long;
-
-            size_t entry_index = 0;
-            for (size_t long_index = 0; long_index < num_longs; ++long_index){
-                net_long l {0};
-                for (uint8_t i = 0; i < entries_per_long; ++i){
-                    uint8_t bit_index = entry_index % entries_per_long * bits_per_entry;
-
-                    l = l | (uint64_t)indirect_palette.palette().data[data[entry_index]] << bit_index;
-                    ++entry_index;
-                }
-
-                l.serialize(buff);
-            }
-        }
-        /* net_paletted_cpontainer_structure_direct */
+        if (is_single())
+            palette.data[0].serialize(buff);
         else {
-            size_t num_of_entries;
-            if constexpr (Blocks)
-                num_of_entries = 4096;
-            else
-                num_of_entries = 64;
-
-            uint8_t entries_per_long = 64 / bits_per_entry;
-            size_t num_longs = (num_of_entries + entries_per_long - 1) / entries_per_long;
+            if (is_indirect())
+                palette.serialize(buff);
 
             size_t entry_index = 0;
-            for (size_t long_index = 0; long_index < num_longs; ++long_index){
+            for (size_t i = 0; i < num_longs; ++i){
                 net_long l {0};
-                for (uint8_t i = 0; i < entries_per_long; ++i){
-                    uint8_t bit_index = entry_index % entries_per_long * bits_per_entry;
-                    l = l | (uint64_t)data[entry_index] << bit_index;
-
+                for (uint8_t j = 0; j < entries_per_long; ++j){
+                    uint8_t bit_index =
+                        entry_index % entries_per_long * bits_per_entry;
+                    l = l | data[entry_index] << bit_index;
+                    l.serialize(buff);
                     ++entry_index;
                 }
-
-                l.serialize(buff);
             }
- 
         }
     }
 
     size_t size() const {
         size_t res = bits_per_entry.size();
 
-        if (
-            std::holds_alternative<net_paletted_container_structure_single>(palette)
-        )
-            res += std::get<net_paletted_container_structure_single>(palette).size();
-        else if (
-            std::holds_alternative<net_paletted_container_structure_indirect>(palette)
-        ){
-            const net_paletted_container_structure_indirect &indirect_palette =
-                std::get<net_paletted_container_structure_indirect>(palette)
-            ;
-
-            res += indirect_palette.size();
-
-            size_t num_of_entries;
-            if constexpr (Blocks)
-                num_of_entries = 4096;
-            else
-                num_of_entries = 64;
-
-            uint8_t entries_per_long = 64 / bits_per_entry;
-            size_t num_longs = (num_of_entries + entries_per_long - 1) / entries_per_long;
-
-            res += num_longs * sizeof(uint64_t);
-        }
-        /* net_paletted_container_direct */
+        if (is_single())
+            res += palette.data[0].size();
         else {
-            size_t num_of_entries;
-            if constexpr (Blocks)
-                num_of_entries = 4096;
-            else
-                num_of_entries = 64;
+            if (is_indirect())
+                res += palette.size();
 
-            uint8_t entries_per_long = 64 / bits_per_entry;
-            size_t num_longs = (num_of_entries + entries_per_long - 1) / entries_per_long;
-
-            res += num_longs * sizeof(uint64_t);
+            res += num_longs * net_long{0}.size();
         }
 
         return res;
