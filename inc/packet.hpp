@@ -314,3 +314,23 @@ struct packet_update_tags :
 
     PACKET_FIELD(0, tagged_registries);
 };
+
+struct packet_level_chunk_with_light :
+    packet<
+        net_int,
+        net_int,
+        net_prefixed_array<net_heightmap>,
+        net_prefixed_array<net_byte>,
+        net_prefixed_array<net_level_chunk_with_light_block_entity>,
+        net_light_data
+    >
+{
+    using packet::packet;
+
+    PACKET_FIELD(0, chunk_x);
+    PACKET_FIELD(1, chunk_z);
+    PACKET_FIELD(2, heightmaps);
+    PACKET_FIELD(3, data);
+    PACKET_FIELD(4, block_entities);
+    PACKET_FIELD(5, light);
+};

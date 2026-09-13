@@ -393,30 +393,6 @@ struct net_update_tags_tagged_registry :
     NET_COMPOUND_FIELD(1, tags);
 };
 
-struct net_paletted_container_structure_single :
-    net_compound<
-        net_var_int
-    >
-{
-    using net_compound::net_compound;
-
-    NET_COMPOUND_FIELD(0, value);
-};
-
-struct net_paletted_container_structure_indirect :
-    net_compound<
-        net_prefixed_array<net_var_int>
-    >
-{
-    using net_compound::net_compound;
-
-    NET_COMPOUND_FIELD(0, palette);
-};
-
-struct net_paletted_container_structure_direct :
-    net_compound<>
-{};
-
 template <bool Blocks>
 struct net_paletted_container_structure : net_type {
     static constexpr size_t  num_entries  = Blocks ? 4096 : 64;
@@ -565,4 +541,87 @@ using net_paletted_container_structure_biomes =
     net_paletted_container_structure<false>
 ;
 
+struct net_heightmap :
+    net_compound<
+        net_var_int,
+        net_prefixed_array<
+            net_long
+        >
+    >
+{
+    using net_compound::net_compound;
 
+    NET_COMPOUND_FIELD(0, type);
+    NET_COMPOUND_FIELD(1, data);
+
+    enum class types {
+        /* all blocks other than air, cave air, and void air */
+        world_surface             = 1,
+        /* "solid" blocks except bamboo saplings, cacti, & fluids */
+        motion_blocking           = 4,
+        /* same as motion_blocking excluding leaf blocks */
+        motion_blocking_no_leaves = 5
+    };
+};
+
+struct net_bitset :
+    net_prefixed_array<net_long>
+{
+    using net_prefixed_array::net_prefixed_array;
+
+    bool operator[] (size_t i) const {
+        return !!(data[i / 64] & (1 << (i % 64)));
+    }
+};
+
+struct net_light_data :
+    net_compound<
+        net_bitset,
+        net_bitset,
+        net_bitset,
+        net_bitset,
+        net_prefixed_array<
+            net_prefixed_array<net_byte>
+        >,
+        net_prefixed_array<
+            net_prefixed_array<net_byte>
+        >
+    >
+{
+    using net_compound::net_compound;
+
+    NET_COMPOUND_FIELD(0, sky_light_mask);
+    NET_COMPOUND_FIELD(1, block_light_mask);
+    NET_COMPOUND_FIELD(2, empty_sky_light_mask);
+    NET_COMPOUND_FIELD(3, empty_block_light_mask);
+    NET_COMPOUND_FIELD(4, sky_light_arrays);
+    NET_COMPOUND_FIELD(5, block_light_arrays);
+};
+
+struct net_level_chunk_with_light_block_entities_packed_xz :
+    net_type
+{
+    uint8_t x, z;
+
+    net_level_chunk_with_light_block_entities_packed_xz(std::span<uint8_t> &buff);
+    net_level_chunk_with_light_block_entities_packed_xz(uint8_t x, uint8_t z);
+
+    void serialize(std::vector<uint8_t> &buff) const;
+    size_t size() const;
+};
+
+struct net_level_chunk_with_light_block_entity :
+    net_compound<
+        net_level_chunk_with_light_block_entities_packed_xz,
+        net_short,
+        net_var_int,
+        net_nbt_data
+    >
+{
+    using net_compound::net_compound;
+
+    NET_COMPOUND_FIELD(0, packed_xz);
+    NET_COMPOUND_FIELD(1, y);
+    NET_COMPOUND_FIELD(2, type);
+    NET_COMPOUND_FIELD(3, data);
+};

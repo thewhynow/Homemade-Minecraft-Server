@@ -188,6 +188,31 @@ net_position::net_position(std::span<uint8_t> &buff):
     z = val << 26 >> 38;
 }
 
-net_paletted_container_structure_blocks test{
-    std::vector<uint32_t>{1, 1, 1, 1, 1}
-};
+net_level_chunk_with_light_block_entities_packed_xz
+::net_level_chunk_with_light_block_entities_packed_xz(
+    std::span<uint8_t> &buff
+){
+    net_ubyte packed{buff};
+
+    x = packed >> 4;
+    z = packed & 15;
+}
+
+net_level_chunk_with_light_block_entities_packed_xz
+::net_level_chunk_with_light_block_entities_packed_xz(
+    uint8_t x, uint8_t z
+):
+    x(x), z(z)
+{}
+
+void net_level_chunk_with_light_block_entities_packed_xz
+::serialize(std::vector<uint8_t> &buff) const {
+    net_ubyte packed {(uint8_t)(((x & 15) << 4) | (z & 15))};
+    packed.serialize(buff);
+}
+
+size_t net_level_chunk_with_light_block_entities_packed_xz
+::size() const {
+    return 1;
+}
+
