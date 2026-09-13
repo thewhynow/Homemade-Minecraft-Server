@@ -187,3 +187,7 @@ net_position::net_position(std::span<uint8_t> &buff):
     y = val << 52 >> 52;
     z = val << 26 >> 38;
 }
+
+net_paletted_container_structure_blocks test{
+    std::vector<uint16_t>{1, 1, 1, 1, 1}
+};
