@@ -350,7 +350,8 @@ struct net_position : net_type {
     net_short y;
 
     net_position(std::span<uint8_t> &buff);
-    void serialize(std::vector<uint8_t> &buff);
+    void serialize(std::vector<uint8_t> &buff) const;
+    size_t size() const;
 };
 
 struct net_login_death_location :

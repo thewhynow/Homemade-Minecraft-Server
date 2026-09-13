@@ -4,9 +4,12 @@
 #include <span>
 #include "types.hpp"
 
+class player;
+
 class connection {
 public:
     connection(socket_wrapper &&sock);
+
 public:
     void on_read();
     void on_write();
@@ -25,6 +28,8 @@ public:
         play
     };
 private:
+    friend class player;
+
     template<typename T>
     void queue_packet(const T &packet);
 
@@ -43,4 +48,6 @@ private:
     std::vector<uint8_t> outbound;
     std::vector<uint8_t> inbound_buff;
     net_var_int inbound_size;
+
+    std::unique_ptr<player> plr;
 };

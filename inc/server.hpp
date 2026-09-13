@@ -8,6 +8,7 @@
 #include <poll.h>
 #include <vector>
 #include "connection.hpp"
+#include "world.hpp"
 
 class server {
 private:
@@ -22,5 +23,9 @@ private:
 private:
     pollfd spollfd;
     std::vector<pollfd> pollfds;
-    std::vector<connection> connections;
+    std::vector<
+        std::unique_ptr<connection>
+    > connections;
+
+    world<384> overworld;
 };

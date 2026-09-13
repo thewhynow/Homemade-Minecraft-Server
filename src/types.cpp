@@ -188,6 +188,18 @@ net_position::net_position(std::span<uint8_t> &buff):
     z = val << 26 >> 38;
 }
 
+void net_position::serialize(
+    std::vector<uint8_t> &buff
+) const {
+    net_long {
+        (int64_t) (((x & 0x3FFFFFF) << 38) | ((z & 0x3FFFFFF) << 12) | (y & 0xFFF))
+    }.serialize(buff);
+}
+
+size_t net_position::size() const {
+    return net_long{0}.size();
+}
+
 net_level_chunk_with_light_block_entities_packed_xz
 ::net_level_chunk_with_light_block_entities_packed_xz(
     std::span<uint8_t> &buff

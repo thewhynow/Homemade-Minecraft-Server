@@ -34,7 +34,7 @@ class chunk_loader {
 private:
     using chunk = chunk<H>;
 public:
-    const chunk &load_chunk(int64_t x, int64_t y) const {
+    chunk load_chunk(int64_t x, int64_t y) {
         /**
          * TODO: implement loading from world file & proper caching
          */
@@ -55,12 +55,12 @@ public:
 
         std::fill(
             res.sections.begin(),
-            res.sections.begin() + 60,
+            res.sections.begin() + 64 / 16,
             all_stone
         );
 
         std::fill(
-            res.sections.begin() + 60,
+            res.sections.begin() + 64 / 16,
             res.sections.end(),
             all_air
         );

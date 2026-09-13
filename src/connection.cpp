@@ -7,13 +7,15 @@
 #include "inc/errors.hpp"
 #include "inc/registry.hpp"
 #include "inc/types.hpp"
+#include "inc/player.hpp"
 
 #include <print>
 
 connection::connection(socket_wrapper &&sock):
     sock(std::move(sock)),
     state(handshake),
-    inbound_size(0)
+    inbound_size(0),
+    plr(nullptr)
 {}
 
 void connection::on_read(){

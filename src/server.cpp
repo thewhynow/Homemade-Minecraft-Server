@@ -26,19 +26,19 @@ void server::start(){
 
         for (size_t i = 0; i < pollfds.size(); ++i){
             if (pollfds[i].revents & POLLOUT){
-                connections[i].on_write();
+                connections[i]->on_write();
 
-                if (!connections[i].has_outbound_data())
+                if (!connections[i]->has_outbound_data())
                     pollfds[i].events &= ~POLLOUT;
             }
 
-            if (connections[i].is_dead())
+            if (connections[i]->is_dead())
                 continue;
 
             if (pollfds[i].revents & POLLIN)
-                connections[i].on_read();
+                connections[i]->on_read();
 
-            if (connections[i].has_outbound_data())
+            if (connections[i]->has_outbound_data())
                 pollfds[i].events |= POLLOUT;
         }
 
@@ -100,14 +100,16 @@ void server::set_main_fd(){
 void server::accept_connection(){
     socket_wrapper sock(spollfd.fd);
     pollfds.emplace_back(sock.get_fd(), POLLIN, 0);
-    connections.emplace_back(std::move(sock));
+    connections.emplace_back(
+        std::make_unique<connection>(std::move(sock))
+    );
 }
 
 void server::remove_connections(){
     for (size_t i = 0; i < connections.size(); ++i){
         if (
-            !connections[i].is_dead() ||
-            connections[i].has_outbound_data()
+            !connections[i]->is_dead() ||
+            connections[i]->has_outbound_data()
         )
             continue;
 
