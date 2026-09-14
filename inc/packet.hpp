@@ -1,6 +1,8 @@
 #pragma once
 #include "types.hpp"
 
+#include <variant>
+
 /* PROTOCOL VERSION 776 */
 
 namespace packet_id {
@@ -33,11 +35,22 @@ namespace packet_id {
     };
 
     enum play : uint8_t {
-        login = 49,
+        login                  = 49,
+        player_position        = 72,
+        confirm_teleportation  = 0,
+        mov_player_pos_rot     = 31,
+        player_info_update     = 70,
+        game_event             = 38,
+        set_chunk_cache_center = 94,
+        level_with_chunk_light = 45,
+        player_loaded          = 44,
     };
 };
 
-template<typename... Ts>
+template<uint8_t Id, typename... Ts>
+requires (
+    std::is_base_of_v<net_type, Ts> && ...
+)
 struct packet :
     net_compound<net_var_int, Ts...>
 {
@@ -62,6 +75,21 @@ struct packet :
         size_t len = body::size();
         return net_var_int(len).size() + len;
     }
+
+    template <typename... Ps>
+    requires (Ps::Id, ...)
+    static std::variant<Ps...> construct_generic (
+        std::span<uint8_t> &buff
+    ){
+        uint8_t id = buff[0];
+
+        template for (constexpr size_t i = 0; i < sizeof... Ps; ++i){
+            using P = Ps...[i];
+
+            if (id == P::Id)
+                return P{buff};
+        }
+    }
 };
 
 #define PACKET_FIELD(num, name)                                        \
@@ -71,6 +99,7 @@ struct packet :
 
 struct packet_intention :
     packet<
+        packet_id::handshake::intention,
         net_var_int,
         net_string,
         net_ushort,
@@ -92,7 +121,10 @@ struct packet_intention :
 };
 
 struct packet_status_response :
-    packet<net_string>
+    packet<
+        packet_id::status::response,
+        net_string
+    >
 {
     using packet::packet;
 
@@ -100,7 +132,10 @@ struct packet_status_response :
 };
 
 struct packet_pong_response :
-    packet<net_long>
+    packet<
+        packet_id::status::pong,
+        net_long
+    >
 {
     using packet::packet;
 
@@ -108,13 +143,16 @@ struct packet_pong_response :
 };
 
 struct packet_status_request :
-    packet<>
+    packet<packet_id::status::request>
 {
     using packet::packet;
 };
 
 struct packet_ping_request :
-    packet<net_long>
+    packet<
+        packet_id::status::ping,
+        net_long
+    >
 {
     using packet::packet;
 
@@ -122,7 +160,11 @@ struct packet_ping_request :
 };
 
 struct packet_hello :
-    packet<net_string, net_uuid>
+    packet<
+        packet_id::login::hello,
+        net_string,
+        net_uuid
+    >
 {
     using packet::packet;
 
@@ -131,7 +173,11 @@ struct packet_hello :
 };
 
 struct packet_login_finished :
-    packet<net_game_profile, net_uuid>
+    packet<
+        packet_id::login::finished,
+        net_game_profile,
+        net_uuid
+    >
 {
     using packet::packet;
 
@@ -140,13 +186,14 @@ struct packet_login_finished :
 };
 
 struct packet_login_acknowledged :
-    packet<>
+    packet<packet_id::login::acknowledged>
 {
     using packet::packet;
 };
 
 struct packet_select_known_packs :
     packet<
+        (uint8_t) -1, /* differing based on server / client bound */
         net_prefixed_array<
             net_select_known_packs_known_pack
         >
@@ -159,6 +206,7 @@ struct packet_select_known_packs :
 
 struct packet_registry_data :
     packet<
+        packet_id::configuration::registry,
         net_identifier,
         net_prefixed_array<
             net_registry_data_entry
@@ -172,13 +220,14 @@ struct packet_registry_data :
 };
 
 struct packet_finish_configuration :
-    packet<>
+    packet<packet_id::configuration::finish>
 {
     using packet::packet;
 };
 
 struct packet_custom_payload_plugin_message:
     packet<
+        (uint8_t) -1, /* differing based on server / client bound */
         net_identifier,
         net_string
     >
@@ -191,6 +240,7 @@ struct packet_custom_payload_plugin_message:
 
 struct packet_client_information :
     packet<
+        packet_id::configuration::client_information,
         net_string,
         net_byte,
         net_var_int,
@@ -242,8 +292,9 @@ struct packet_client_information :
     };
 };
 
-struct packet_login : 
+struct packet_login :
     packet<
+        packet_id::play::login,
         net_int,
         net_boolean,
         net_prefixed_array<
@@ -305,6 +356,7 @@ struct packet_login :
 
 struct packet_update_tags :
     packet<
+        packet_id::configuration::update_tags,
         net_prefixed_array<
             net_update_tags_tagged_registry
         >
@@ -317,6 +369,7 @@ struct packet_update_tags :
 
 struct packet_level_chunk_with_light :
     packet<
+        packet_id::play::level_with_chunk_light,
         net_int,
         net_int,
         net_prefixed_array<net_heightmap>,

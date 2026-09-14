@@ -195,6 +195,24 @@ void connection::handle(
 
             queue_packet(response);
             state = login_success;
+
+            plr = std::make_unique<player>(
+                player {
+                    0,
+                    {
+                        packet.player_uuid(),
+                        packet.name(),
+                        {{}}
+                    },
+                    *this,
+                    0.0, 0.0, 0.0,
+                    0.0f, 0.0f,
+                    false,
+                    0, 0,
+                    {}
+                }
+            );
+
             break;
         }
 
@@ -222,7 +240,6 @@ void connection::handle(
         }
 
         case play: {
-            std::println("made it to play");
         }
     }
 }
@@ -235,8 +252,6 @@ void connection::handle_configuration(
     switch (id){
         case packet_id::configuration::custom_server_bound: {
             packet_custom_payload_plugin_message packet{buff};
-
-            std::println("custom server bound brand packet");
 
             packet_custom_payload_plugin_message response {
                 (uint8_t) packet_id::configuration::custom_client_bound,
@@ -394,12 +409,6 @@ void connection::handle_configuration(
                                     }
                                 }}
                             },
-                            /*
-                                entries of tags on built-in registries are
-                                numeric ids, taken from reports/registries.json
-                                (26.2). they must be regenerated on a version
-                                bump.
-                            */
                             {
                                 {"minecraft:block"},
                                 {{
@@ -473,24 +482,17 @@ void connection::handle_configuration(
 
             queue_packet(response);
 
-            std::println("sending registry packets");
-
             state = configuration_finish;
             break;
         }
 
         case packet_id::configuration::client_information: {
             packet_client_information packet(buff);
-
-            std::println("recieved client information");
-
             break;
         }
 
         case packet_id::configuration::finish: {
             packet_finish_configuration packet(buff);
-
-            std::println("play state activated");
 
             state = play;
             break;

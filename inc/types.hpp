@@ -14,7 +14,6 @@
 #include <utility>
 #include <vector>
 #include <set>
-#include <ranges>
 
 struct net_type {
     void serialize(std::vector<uint8_t> &buff) const;
@@ -349,6 +348,7 @@ struct net_position : net_type {
     net_long z;
     net_short y;
 
+    net_position(net_long x, net_long z, net_short y);
     net_position(std::span<uint8_t> &buff);
     void serialize(std::vector<uint8_t> &buff) const;
     size_t size() const;

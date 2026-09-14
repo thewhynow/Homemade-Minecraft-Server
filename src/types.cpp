@@ -178,6 +178,12 @@ size_t net_nbt_data::size() const {
         + data.size();
 }
 
+net_position::net_position(
+    net_long x, net_long z, net_short y
+):
+    x(x), z(z), y(y)
+{}
+
 net_position::net_position(std::span<uint8_t> &buff):
     x(0), z(0), y(0)
 {

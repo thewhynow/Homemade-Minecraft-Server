@@ -16,10 +16,8 @@ public:
 
     void tick();
 public:
-    int32_t     entity_id;
-    net_uuid    id;
-    std::string name;
-    net_game_profile_property properties;
+    uint32_t entity_id;
+    net_game_profile profile;
 
     connection &conn;
 
@@ -33,10 +31,4 @@ public:
         std::pair<int32_t, int32_t>
     > loaded_chunks;
 
-    packet_client_information info;
-
-    net_position pos;
-    net_position sent_pos;
-
-    int32_t view_distance;
 };
