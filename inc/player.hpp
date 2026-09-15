@@ -8,10 +8,21 @@
 
 class player {
 public:
-    template <typename P>
-    requires (std::__is_specialization_v<P, packet>)
-    void send(const P &p){
-        conn.queue_packet(p);
+    template <typename... Ps>
+    requires (is_packet_v<Ps> && ...)
+    void recieve(const std::variant<Ps...> &p){
+        (
+            [&]() -> bool {
+                if (
+                    std::holds_alternative<Ps>(p)
+                ){
+                    return true;
+                }
+
+                return false;
+            }
+            || ...
+        );
     }
 
     void tick();
@@ -30,5 +41,5 @@ public:
         /* x, z */
         std::pair<int32_t, int32_t>
     > loaded_chunks;
-
+private:
 };

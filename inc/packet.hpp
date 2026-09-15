@@ -51,6 +51,21 @@ template<uint8_t Id, typename... Ts>
 requires (
     std::is_base_of_v<net_type, Ts> && ...
 )
+struct packet;
+
+template <typename T>
+struct is_packet : std::false_type {};
+
+template <uint8_t Id, typename... Ts>
+struct is_packet<packet<Id, Ts...>> : std::true_type {};
+
+template <typename T>
+inline constexpr bool is_packet_v = is_packet<T>::value;
+
+template<uint8_t Id, typename... Ts>
+requires (
+    std::is_base_of_v<net_type, Ts> && ...
+)
 struct packet :
     net_compound<net_var_int, Ts...>
 {
@@ -77,11 +92,30 @@ struct packet :
     }
 
     template <typename... Ps>
-    requires (Ps::Id, ...)
-    static std::variant<Ps...> construct_generic (
+    requires (is_packet_v<Ps> && ...)
+    static std::variant<Ps...> generic (
         std::span<uint8_t> &buff
     ){
         uint8_t id = buff[0];
+        std::variant<Ps...> res;
+
+        (
+            [&](){
+                if (id == Ps::Id){
+                    res = Ps{buff};
+                    return true;
+                }
+
+                return false;
+            }
+            || ...
+        );
+
+        return res;
+
+        /*
+        i'm going to keep this code here as a reminder of what could've
+        been if apple clang decided to update faster...
 
         template for (constexpr size_t i = 0; i < sizeof... Ps; ++i){
             using P = Ps...[i];
@@ -89,6 +123,7 @@ struct packet :
             if (id == P::Id)
                 return P{buff};
         }
+        */
     }
 };
 
