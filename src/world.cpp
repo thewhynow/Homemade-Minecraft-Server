@@ -30,7 +30,8 @@ void world::set_block(int32_t x, int32_t y, int32_t z, uint32_t state) {
 
 player *world::add_player(player &&player) {
     uint32_t id = player.id;
-    entities.emplace(player.id, std::move(player));
+    class player *plr = new class player {std::move(player)};
+    entities[player.id] = std::unique_ptr<entity> {(entity*) plr};
     return (class player*) entities[id].get();
 }
 
