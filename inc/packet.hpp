@@ -100,7 +100,7 @@ struct packet :
         std::variant<Ps...> res;
 
         (
-            [&](){
+            [&]() -> bool {
                 if (id == Ps::Id){
                     res = Ps{buff};
                     return true;
@@ -344,8 +344,8 @@ struct packet_login :
         net_var_int,
         net_identifier,
         net_long,
-        net_ubyte,
-        net_byte,
+        net_var_int,
+        net_var_int,
         net_boolean,
         net_boolean,
         net_prefixed_optional<

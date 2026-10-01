@@ -8,6 +8,7 @@
 #include "inc/registry.hpp"
 #include "inc/types.hpp"
 #include "inc/player.hpp"
+#include "inc/world.hpp"
 
 #include <print>
 
@@ -183,34 +184,22 @@ void connection::handle(
         case login_start: {
             packet_hello packet(buff);
 
+            net_game_profile profile {
+                packet.player_uuid(),
+                packet.name(),
+                {{/* properties */}}
+            };
+
             packet_login_finished response {
                 {(uint8_t) packet_id::login::finished},
-                {
-                    packet.player_uuid(),
-                    packet.name(),
-                    {{}}
-                },
-                {0, 0}
+                profile, {0, 0}
             };
 
             queue_packet(response);
             state = login_success;
 
-            plr = std::make_unique<player>(
-                player {
-                    0,
-                    {
-                        packet.player_uuid(),
-                        packet.name(),
-                        {{}}
-                    },
-                    *this,
-                    0.0, 0.0, 0.0,
-                    0.0f, 0.0f,
-                    false,
-                    0, 0,
-                    {}
-                }
+            plr = new player(
+                std::move(profile), *this
             );
 
             break;
@@ -240,7 +229,8 @@ void connection::handle(
         }
 
         case play: {
-
+            handle_play(buff);
+            break;
         }
     }
 }
@@ -495,6 +485,34 @@ void connection::handle_configuration(
         case packet_id::configuration::finish: {
             packet_finish_configuration packet(buff);
 
+            world::overworld.add_player(
+                std::move(*plr)
+            );
+
+            packet_login response {
+                {(uint8_t) packet_id::play::login},
+                {(int32_t) plr->id},
+                {false},
+                {{{"minecraft:overworld"}}},
+                {-1}, {2}, {4},
+                {false}, {true}, {true},
+                {
+                    synced_registries::instance
+                        ["minecraft:dimension_type"]
+                        ["minecraft:overworld"]
+                },
+                {"minecraft:overworld"},
+                {0},
+                {packet_login::game_modes::survival},
+                {0}, 
+                {false}, {true},
+                {nullptr},
+                {0}, {60},
+                {false}, {false}
+            };
+
+            queue_packet(response);
+
             state = play;
             break;
         }
@@ -516,4 +534,8 @@ void connection::queue_packet(
         serialized.begin(),
         serialized.end()
     );
+}
+
+void connection::handle_play(std::span<uint8_t> &buff){
+
 }

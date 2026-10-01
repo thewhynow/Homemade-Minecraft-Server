@@ -49,5 +49,8 @@ private:
     std::vector<uint8_t> inbound_buff;
     net_var_int inbound_size;
 
-    std::unique_ptr<player> plr;
+    /**
+     * only owning while NOT in play state
+     */
+    player *plr;
 };

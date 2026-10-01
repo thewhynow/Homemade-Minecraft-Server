@@ -1,0 +1,40 @@
+#include "inc/world.hpp"
+
+world::world() = default;
+
+world world::overworld;
+
+uint32_t world::get_block(int32_t x, int32_t y, int32_t z) const {
+    chunk &c = chunk_loader::instance.load_chunk(
+        x / 16, z / 16
+    );
+
+    x = std::abs(x);
+    y += std::abs(min_y);
+    z = std::abs(z);
+
+    return c.sections[y / 16]
+            .blocks[x % 16][z % 16][y % 16]
+    ;
+}
+
+void world::set_block(int32_t x, int32_t y, int32_t z, uint32_t state) {
+    chunk &c = chunk_loader::instance.load_chunk(
+        x / 16, z / 16
+    );
+
+    c.sections[y / 16].blocks[x % 16][z % 16][y % 16]
+        = state
+    ;
+}
+
+player *world::add_player(player &&player) {
+    uint32_t id = player.id;
+    entities.emplace(player.id, std::move(player));
+    return (class player*) entities[id].get();
+}
+
+void world::tick() {
+
+}
+

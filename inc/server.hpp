@@ -26,6 +26,4 @@ private:
     std::vector<
         std::unique_ptr<connection>
     > connections;
-
-    world<384> overworld;
 };

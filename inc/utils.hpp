@@ -5,6 +5,7 @@
 #include <span>
 #include <vector>
 #include <type_traits>
+#include <utility>
 #include "errors.hpp"
 
 template <typename T>
@@ -43,4 +44,20 @@ void write_be(std::vector<uint8_t> &buff, T value){
     size_t off = buff.size();
     buff.resize(off + sizeof raw);
     memcpy(buff.data() + off, &raw, sizeof raw);
+}
+
+struct vec3 {
+    double x, y, z;
+};
+
+namespace std {
+    template <>
+    struct hash<std::pair<int32_t, int32_t>> {
+        std::size_t operator() (const std::pair<int32_t, int32_t> &pair)
+        const noexcept {
+            return (uint64_t)(uint32_t)pair.first
+                 | (uint64_t)(uint32_t)pair.second << 32
+            ;
+        }
+    };
 }
