@@ -11,8 +11,6 @@ class world;
 
 class player : public entity {
 public:
-    using entity::entity;
-
     player (
         net_game_profile &&profile,
         connection &conn
@@ -38,6 +36,10 @@ public:
 
     void tick() override;
 public:
+    void on_enter_world(world &w);
+private:
+    void set_center_chunk();
+public:
     net_game_profile profile;
 
     connection &conn;
@@ -47,7 +49,10 @@ public:
         std::pair<int32_t, int32_t>
     > loaded_chunks;
 private:
-    void recieve(const packet_level_chunk_with_light &packet);
+    uint32_t teleport_id;
 
-    void recieve(const packet_login &packet);
+private:
+    void recieve(const packet_accept_teleportation &packet);
+
+    void recieve(const packet_move_player_position_rotation &packet);
 };

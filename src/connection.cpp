@@ -10,8 +10,6 @@
 #include "inc/player.hpp"
 #include "inc/world.hpp"
 
-#include <print>
-
 connection::connection(socket_wrapper &&sock):
     sock(std::move(sock)),
     state(handshake),
@@ -132,12 +130,12 @@ void connection::handle(
 
             if (
                 packet.intent()
-                == packet_intention::intent_status
+                == (uint8_t) packet_intention::intents::intent_status
             )
                 state = status_request;
             else if (
                 packet.intent()
-                == packet_intention::intent_login
+                == (uint8_t) packet_intention::intents::intent_login
             )
                 state = login_start;
 
@@ -485,9 +483,11 @@ void connection::handle_configuration(
         case packet_id::configuration::finish: {
             packet_finish_configuration packet(buff);
 
-            world::overworld.add_player(
+            player *pending = world::overworld.add_player (
                 std::move(*plr)
             );
+            delete plr;
+            plr = pending;
 
             packet_login response {
                 {(uint8_t) packet_id::play::login},
@@ -503,8 +503,8 @@ void connection::handle_configuration(
                 },
                 {"minecraft:overworld"},
                 {0},
-                {packet_login::game_modes::survival},
-                {0}, 
+                {(uint8_t) packet_login::game_modes::survival},
+                {0},
                 {false}, {true},
                 {nullptr},
                 {0}, {60},
@@ -537,5 +537,12 @@ void connection::queue_packet(
 }
 
 void connection::handle_play(std::span<uint8_t> &buff){
+    auto packet_variant =
+        build_packet<
+            packet_accept_teleportation,
+            packet_move_player_position_rotation
+        > (buff)
+    ;
 
+    plr->recieve(packet_variant);
 }

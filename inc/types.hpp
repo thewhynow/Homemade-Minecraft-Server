@@ -78,7 +78,7 @@ struct net_compound : net_type {
     std::tuple<Ts...> fields;
 
     net_compound(std::span<uint8_t> &buff):
-        fields{Ts(buff)...}
+        fields{Ts{buff}...}
     {}
 
     net_compound(Ts... vals):
@@ -114,9 +114,99 @@ struct net_compound : net_type {
     }
 };
 
-#define NET_COMPOUND_FIELD(num, name)                                        \
-    auto &name() { return get<num>(); }                                      \
+#define NET_COMPOUND_FIELD(num, name)              \
+    auto &name() { return get<num>(); }            \
     const auto &name() const { return get<num>(); }
+
+template <std::derived_from<net_type>... Ts>
+requires (
+    sizeof...(Ts) < 64
+)
+struct net_masked_set : net_type {
+    std::tuple<std::optional<Ts>...> fields;
+
+                                            /* we're not going to be reading much of this either way */
+    net_masked_set(std::span<uint8_t> &buff, uint64_t mask = 0) {
+        [&]<size_t... Is>
+            (std::index_sequence<Is...>)
+        {
+            (
+                (
+                    mask & (1ULL << Is)
+                        ? (std::get<Is>(fields) = buff, 0)
+                        : (0)
+                ),
+                ...
+            );
+        }(std::index_sequence_for<Ts...>{});
+    }
+
+    net_masked_set(std::optional<Ts>... vals):
+        fields(std::move(vals)...)
+    {}
+
+    template<size_t I>
+    auto &get(){
+        return *std::get<I>(fields);
+    }
+
+    template <size_t I>
+    const auto &get() const {
+        return *std::get<I>(fields);
+    }
+
+    void serialize(std::vector<uint8_t> &buff) const {
+        [&]<size_t... Is>
+            (std::index_sequence<Is...>)
+        {
+            (
+                (
+                    std::get<Is>(fields)
+                        ? (std::get<Is>(fields)->serialize(buff), 0)
+                        : (0)
+                ),
+                ...
+            );
+        }(std::index_sequence_for<Ts...>{});
+    }
+
+    size_t size() const {
+        size_t res = 0;
+        [&]<size_t... Is>
+            (std::index_sequence<Is...>)
+        {
+            (
+                (
+                    std::get<Is>(fields)
+                        ? (res += std::get<Is>(fields)->size(), 0)
+                        : (0)
+                ),
+                ...
+            );
+        }(std::index_sequence_for<Ts...>{});
+
+        return res;
+    }
+
+    uint64_t mask() const {
+        uint64_t mask = 0;
+
+        [&]<size_t... Is>
+            (std::index_sequence<Is...>)
+        {
+            (
+                (
+                    mask |= std::get<Is>(fields)
+                        ? (1ULL << Is)
+                        : (0)
+                ),
+                ...
+            );
+        }(std::index_sequence_for<Ts...>{});
+
+        return mask;
+    }
+};
 
 struct net_string : net_type {
     std::string value;
@@ -647,4 +737,168 @@ struct net_level_chunk_with_light_block_entity :
     NET_COMPOUND_FIELD(1, y);
     NET_COMPOUND_FIELD(2, type);
     NET_COMPOUND_FIELD(3, data);
+};
+
+struct net_teleport_flags : net_int {
+    using net_int::net_int;
+
+    enum masks {
+        rel_x = 0x0001,
+        rel_y = 0x0002,
+        rel_z = 0x0004,
+        rel_yaw = 0x0008,
+        rel_pitch = 0x0010,
+        rel_vel_x = 0x0020,
+        rel_vel_y = 0x0040,
+        rel_vel_z = 0x0080,
+        rel_rotate_vel = 0x0100
+    };
+};
+
+struct net_player_action_add_player :
+    net_compound<
+        net_string,
+        net_prefixed_array<net_game_profile_property>
+    >
+{
+    using net_compound::net_compound;
+
+    NET_COMPOUND_FIELD(0, name);
+    NET_COMPOUND_FIELD(1, properties);
+};
+
+struct net_player_action_initialize_chat_data :
+    net_compound<
+        net_uuid,
+        net_long,
+        net_prefixed_array<net_byte>,
+        net_prefixed_array<net_byte>
+    >
+{
+    using net_compound::net_compound;
+
+    NET_COMPOUND_FIELD(0, chat_session_id);
+    NET_COMPOUND_FIELD(1, public_key_expiry);
+    NET_COMPOUND_FIELD(2, encoded_public_key);
+    NET_COMPOUND_FIELD(3, public_key_signature);
+};
+
+struct net_player_action_initialize_chat :
+    net_compound<
+        net_prefixed_optional<
+            net_player_action_initialize_chat_data
+        >
+    >
+{
+    using net_compound::net_compound;
+
+    NET_COMPOUND_FIELD(0, data);
+};
+
+struct net_player_action_update_game_mode :
+    net_compound<
+        net_var_int
+    >
+{
+    using net_compound::net_compound;
+
+    NET_COMPOUND_FIELD(0, game_mode);
+};
+
+struct net_player_action_update_listed :
+    net_compound<
+        net_boolean
+    >
+{
+    using net_compound::net_compound;
+
+    NET_COMPOUND_FIELD(0, listed);
+};
+
+struct net_player_action_update_latency :
+    net_compound<
+        net_var_int
+    >
+{
+    using net_compound::net_compound;
+
+    /**
+     * < 0 -> not connected
+     * < 150 -> 5 bars
+     * < 300 -> 4 bars
+     * < 600 -> 3 bars
+     * < 1,000 -> 2 bars
+     * >= 1,000 -> 1 bar
+     */
+
+    NET_COMPOUND_FIELD(0, ping);
+};
+
+
+struct net_player_action_update_display_name :
+    net_compound<
+        net_prefixed_optional<
+            net_nbt_data
+        >
+    >
+{
+    using net_compound::net_compound;
+
+    NET_COMPOUND_FIELD(0, display_name);
+};
+
+struct net_player_action_update_priority :
+    net_compound<
+        net_var_int
+    >
+{
+    using net_compound::net_compound;
+
+    NET_COMPOUND_FIELD(0, priority);
+};
+
+struct net_player_action_update_hat :
+    net_compound<
+        net_boolean
+    >
+{
+    using net_compound::net_compound;
+
+    NET_COMPOUND_FIELD(0, visible);
+};
+
+struct net_player_actions :
+    net_masked_set<
+        net_player_action_add_player,
+        net_player_action_initialize_chat,
+        net_player_action_update_game_mode,
+        net_player_action_update_listed,
+        net_player_action_update_latency,
+        net_player_action_update_display_name,
+        net_player_action_update_priority,
+        net_player_action_update_hat
+    >
+{
+    using net_masked_set::net_masked_set;
+
+    NET_COMPOUND_FIELD(0, add_player);
+    NET_COMPOUND_FIELD(1, initialize_chat);
+    NET_COMPOUND_FIELD(2, update_game_mode);
+    NET_COMPOUND_FIELD(3, update_listed);
+    NET_COMPOUND_FIELD(4, update_latency);
+    NET_COMPOUND_FIELD(5, update_display_name);
+    NET_COMPOUND_FIELD(6, update_priority);
+    NET_COMPOUND_FIELD(7, update_hat);
+};
+
+struct net_player_info_update_player :
+    net_compound<
+        net_uuid,
+        net_player_actions
+    >
+{
+    using net_compound::net_compound;
+
+    NET_COMPOUND_FIELD(0, uuid);
+    NET_COMPOUND_FIELD(1, actions);
 };

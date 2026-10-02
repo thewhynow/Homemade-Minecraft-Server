@@ -6,24 +6,24 @@
 /* PROTOCOL VERSION 776 */
 
 namespace packet_id {
-    enum handshake : uint8_t {
+    enum class handshake : uint8_t {
         intention = 0
     };
 
-    enum status : uint8_t {
+    enum class status : uint8_t {
         response = 0,
         pong     = 1,
         request  = 0,
         ping     = 1
     };
 
-    enum login : uint8_t {
+    enum class login : uint8_t {
         hello        = 0,
         finished     = 2,
         acknowledged = 3
     };
 
-    enum configuration : uint8_t {
+    enum class configuration : uint8_t {
         known_client_bound  = 14,
         known_server_bound  = 7,
         registry            = 7,
@@ -34,10 +34,10 @@ namespace packet_id {
         update_tags         = 13,
     };
 
-    enum play : uint8_t {
+    enum class play : uint8_t {
         login                  = 49,
         player_position        = 72,
-        confirm_teleportation  = 0,
+        accept_teleportation   = 0,
         mov_player_pos_rot     = 31,
         player_info_update     = 70,
         game_event             = 38,
@@ -53,22 +53,26 @@ requires (
 )
 struct packet;
 
-template <typename T>
-struct is_packet : std::false_type {};
+template <uint8_t Id, typename... Ts>
+std::true_type is_packet_test(const packet<Id, Ts...> *);
 
 template <uint8_t Id, typename... Ts>
-struct is_packet<packet<Id, Ts...>> : std::true_type {};
+std::false_type is_packet_test(...);
 
 template <typename T>
-inline constexpr bool is_packet_v = is_packet<T>::value;
+inline constexpr bool is_packet_v =
+    decltype(is_packet_test(std::declval<T *>()))::value
+;
 
-template<uint8_t Id, typename... Ts>
+template<uint8_t IdTemplate, typename... Ts>
 requires (
     std::is_base_of_v<net_type, Ts> && ...
 )
 struct packet :
     net_compound<net_var_int, Ts...>
 {
+    static inline constexpr uint8_t Id = IdTemplate;
+
     using body = net_compound<net_var_int, Ts...>;
     using body::body;
 
@@ -90,30 +94,38 @@ struct packet :
         size_t len = body::size();
         return net_var_int(len).size() + len;
     }
+};
 
-    template <typename... Ps>
-    requires (is_packet_v<Ps> && ...)
-    static std::variant<Ps...> generic (
-        std::span<uint8_t> &buff
-    ){
-        uint8_t id = buff[0];
-        std::variant<Ps...> res;
+#define PACKET_FIELD(num, name)                                        \
+    auto &name(){ return this-> template get<num + 1>(); }             \
+    const auto &name() const { return this-> template get<num + 1>(); }
 
-        (
-            [&]() -> bool {
-                if (id == Ps::Id){
-                    res = Ps{buff};
-                    return true;
-                }
+template <typename... Ps>
+requires (is_packet_v<Ps> && ...)
+static std::variant<Ps...> build_packet (
+    std::span<uint8_t> &buff
+){
+    if (buff.empty())
+        throw malformed_packet("no packet id");
 
-                return false;
+    uint8_t id = buff[0];
+    std::optional<std::variant<Ps...>> res;
+
+    (
+        [&]() -> bool {
+            if (id == Ps::Id){
+                res = Ps{buff};
+                return true;
             }
-            || ...
-        );
 
-        return res;
+            return false;
+        }()
+        || ...
+    );
 
-        /*
+    return std::move(*res);
+
+    /*
         i'm going to keep this code here as a reminder of what could've
         been if apple clang decided to update faster...
 
@@ -123,18 +135,12 @@ struct packet :
             if (id == P::Id)
                 return P{buff};
         }
-        */
-    }
-};
-
-#define PACKET_FIELD(num, name)                                        \
-    auto &name(){ return this-> template get<num + 1>(); }             \
-    const auto &name() const { return this-> template get<num + 1>(); }
-
+    */
+}
 
 struct packet_intention :
     packet<
-        packet_id::handshake::intention,
+        (uint8_t) packet_id::handshake::intention,
         net_var_int,
         net_string,
         net_ushort,
@@ -148,7 +154,7 @@ struct packet_intention :
     PACKET_FIELD(2, port);
     PACKET_FIELD(3, intent);
 
-    enum intents {
+    enum class intents {
         intent_status   = 1,
         intent_login    = 2,
         intent_transfer = 3
@@ -157,7 +163,7 @@ struct packet_intention :
 
 struct packet_status_response :
     packet<
-        packet_id::status::response,
+        (uint8_t) packet_id::status::response,
         net_string
     >
 {
@@ -168,7 +174,7 @@ struct packet_status_response :
 
 struct packet_pong_response :
     packet<
-        packet_id::status::pong,
+        (uint8_t) packet_id::status::pong,
         net_long
     >
 {
@@ -178,14 +184,14 @@ struct packet_pong_response :
 };
 
 struct packet_status_request :
-    packet<packet_id::status::request>
+    packet<(uint8_t) packet_id::status::request>
 {
     using packet::packet;
 };
 
 struct packet_ping_request :
     packet<
-        packet_id::status::ping,
+        (uint8_t) packet_id::status::ping,
         net_long
     >
 {
@@ -196,7 +202,7 @@ struct packet_ping_request :
 
 struct packet_hello :
     packet<
-        packet_id::login::hello,
+        (uint8_t) packet_id::login::hello,
         net_string,
         net_uuid
     >
@@ -209,7 +215,7 @@ struct packet_hello :
 
 struct packet_login_finished :
     packet<
-        packet_id::login::finished,
+        (uint8_t) packet_id::login::finished,
         net_game_profile,
         net_uuid
     >
@@ -221,7 +227,7 @@ struct packet_login_finished :
 };
 
 struct packet_login_acknowledged :
-    packet<packet_id::login::acknowledged>
+    packet<(uint8_t) packet_id::login::acknowledged>
 {
     using packet::packet;
 };
@@ -241,7 +247,7 @@ struct packet_select_known_packs :
 
 struct packet_registry_data :
     packet<
-        packet_id::configuration::registry,
+        (uint8_t) packet_id::configuration::registry,
         net_identifier,
         net_prefixed_array<
             net_registry_data_entry
@@ -255,7 +261,7 @@ struct packet_registry_data :
 };
 
 struct packet_finish_configuration :
-    packet<packet_id::configuration::finish>
+    packet<(uint8_t) packet_id::configuration::finish>
 {
     using packet::packet;
 };
@@ -275,7 +281,7 @@ struct packet_custom_payload_plugin_message:
 
 struct packet_client_information :
     packet<
-        packet_id::configuration::client_information,
+        (uint8_t) packet_id::configuration::client_information,
         net_string,
         net_byte,
         net_var_int,
@@ -299,13 +305,13 @@ struct packet_client_information :
     PACKET_FIELD(7, server_listings);
     PACKET_FIELD(8, particles);
 
-    enum chat_modes {
+    enum class chat_modes {
         enabled = 0,
         commands = 1,
         hidden = 2
     };
 
-    enum skin_parts_masks : uint8_t {
+    enum class skin_parts_masks : uint8_t {
         cape         = 0x01,
         jacket       = 0x02,
         left_sleeve  = 0x04,
@@ -315,12 +321,12 @@ struct packet_client_information :
         hat          = 0x40
     };
 
-    enum main_hand {
+    enum class main_hand {
         left  = 0,
         right = 1
     };
 
-    enum particle_statuses {
+    enum class particle_statuses {
         all       = 0,
         decreased = 1,
         minimal   = 2
@@ -329,7 +335,7 @@ struct packet_client_information :
 
 struct packet_login :
     packet<
-        packet_id::play::login,
+        (uint8_t) packet_id::play::login,
         net_int,
         net_boolean,
         net_prefixed_array<
@@ -381,7 +387,7 @@ struct packet_login :
     PACKET_FIELD(19, online_mode);
     PACKET_FIELD(20, enforces_secure_chat);
 
-    enum game_modes : uint8_t {
+    enum class game_modes : uint8_t {
         survival  = 0,
         creative  = 1,
         adventure = 2,
@@ -391,7 +397,7 @@ struct packet_login :
 
 struct packet_update_tags :
     packet<
-        packet_id::configuration::update_tags,
+        (uint8_t) packet_id::configuration::update_tags,
         net_prefixed_array<
             net_update_tags_tagged_registry
         >
@@ -404,7 +410,7 @@ struct packet_update_tags :
 
 struct packet_level_chunk_with_light :
     packet<
-        packet_id::play::level_with_chunk_light,
+        (uint8_t) packet_id::play::level_with_chunk_light,
         net_int,
         net_int,
         net_prefixed_array<net_heightmap>,
@@ -421,4 +427,168 @@ struct packet_level_chunk_with_light :
     PACKET_FIELD(3, data);
     PACKET_FIELD(4, block_entities);
     PACKET_FIELD(5, light);
+};
+
+struct packet_player_position :
+    packet<
+        (uint8_t) packet_id::play::player_position,
+        net_var_int,
+        net_double,
+        net_double,
+        net_double,
+        net_double,
+        net_double,
+        net_double,
+        net_float,
+        net_float,
+        net_teleport_flags
+    >
+{
+    using packet::packet;
+
+    PACKET_FIELD(0, id);
+    PACKET_FIELD(1, x);
+    PACKET_FIELD(2, y);
+    PACKET_FIELD(3, z);
+    PACKET_FIELD(4, v_x);
+    PACKET_FIELD(5, v_y);
+    PACKET_FIELD(6, v_z);
+    PACKET_FIELD(7, yaw);
+    PACKET_FIELD(8, pitch);
+    PACKET_FIELD(9, flags);
+};
+
+struct packet_accept_teleportation :
+    packet<
+        (uint8_t) packet_id::play::accept_teleportation,
+        net_var_int,
+        net_double,
+        net_double,
+        net_double,
+        net_float,
+        net_float
+    >
+{
+    using packet::packet;
+
+    PACKET_FIELD(0, id);
+    PACKET_FIELD(1, x);
+    PACKET_FIELD(2, y);
+    PACKET_FIELD(3, z);
+    PACKET_FIELD(4, yaw);
+    PACKET_FIELD(5, pitch);
+};
+
+struct packet_move_player_position_rotation :
+    packet<
+        (uint8_t) packet_id::play::mov_player_pos_rot,
+        net_double,
+        net_double,
+        net_double,
+        net_float,
+        net_float,
+        net_byte
+    >
+{
+    using packet::packet;
+
+    PACKET_FIELD(0, x);
+    PACKET_FIELD(1, feet_y);
+    PACKET_FIELD(2, z);
+    PACKET_FIELD(3, yaw);
+    PACKET_FIELD(4, pitch);
+    PACKET_FIELD(5, flags);
+
+    enum class flags_bitfields : uint8_t {
+        on_ground            = 0x01,
+        pushing_against_wall = 0x02
+    };
+};
+
+struct packet_player_info_update :
+    packet<
+        (uint8_t) packet_id::play::player_info_update,
+        net_ubyte,
+        net_prefixed_array<
+            net_player_info_update_player
+        >
+    >
+{
+    using packet::packet;
+
+    PACKET_FIELD(0, actions);
+    PACKET_FIELD(1, players);
+};
+
+struct packet_game_event :
+    packet<
+        (uint8_t) packet_id::play::game_event,
+        net_ubyte,
+        net_float
+    >
+{
+    using packet::packet;
+
+    PACKET_FIELD(0, event);
+    PACKET_FIELD(1, value);
+
+    enum class events : uint8_t {
+        no_respawn              = 0,
+        begin_rain              = 1,
+        end_rain                = 2,
+        change_game_mode        = 3,
+        win_game                = 4,
+        demo_event              = 5,
+        arrow_hit               = 6,
+        change_rain_level       = 7,
+        change_thunder_level    = 8,
+        pufferfish_sting        = 9,
+        elder_guardian_scare    = 10,
+        toggle_immediate_spawn  = 11,
+        toggle_limited_crafting = 12,
+        wait_for_chunks         = 13
+    };
+
+    enum class change_game_modes {
+        survival  = 0,
+        creative  = 1,
+        adventure = 2,
+        spectator = 3
+    };
+
+    enum class demo_events {
+        welcome   = 0,
+        movement  = 101,
+        jump      = 102,
+        inventory = 103,
+        over      = 104
+    };
+
+    enum class elder_guardian_scares {
+        visual_only      = 0,
+        sound_and_visual = 1
+    };
+
+    enum class toggle_immediate_spawns {
+        disable = 0,
+        enable  = 1
+    };
+
+    enum class toggle_limited_craftings {
+        disable = 0,
+        enable  = 1
+    };
+};
+
+struct packet_set_center_chunk :
+    packet<
+        (uint8_t) packet_id::play::set_chunk_cache_center,
+        net_var_int,
+        net_var_int
+    >
+{
+    using packet::packet;
+
+    PACKET_FIELD(0, cx);
+    PACKET_FIELD(1, cz);
 };
