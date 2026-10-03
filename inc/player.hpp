@@ -13,6 +13,7 @@ class player : public entity {
 public:
     player (
         net_game_profile &&profile,
+        packet_client_information &&info,
         connection &conn
     );
 
@@ -38,7 +39,7 @@ public:
 public:
     void on_enter_world(world &w);
 private:
-    void set_center_chunk();
+    void set_center_chunk(int32_t new_cx, int32_t new_cz);
 public:
     net_game_profile profile;
 
@@ -49,7 +50,8 @@ public:
         std::pair<int32_t, int32_t>
     > loaded_chunks;
 private:
-    uint32_t teleport_id;
+    std::optional<int32_t> teleport_id;
+    packet_client_information client_info;
 
 private:
     void recieve(const packet_accept_teleportation &packet);

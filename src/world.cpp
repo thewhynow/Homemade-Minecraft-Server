@@ -1,33 +1,36 @@
 #include "inc/world.hpp"
+#include "inc/blocks.hpp"
 
 world::world() = default;
 
 world world::overworld;
 
 uint32_t world::get_block(int32_t x, int32_t y, int32_t z) const {
+    if (y < min_y || max_y <= y)
+        return block::air;
+
     chunk &c = chunk_loader::instance.load_chunk(
-        x / 16, z / 16
+        x >> 4, z >> 4
     );
 
-    x = std::abs(x);
-    y += std::abs(min_y);
-    z = std::abs(z);
+    y -= min_y;
 
     return c.sections[y / 16]
-            .blocks[x % 16][z % 16][y % 16]
+            .blocks[y % 16][z & 15][x & 15]
     ;
 }
 
 void world::set_block(int32_t x, int32_t y, int32_t z, uint32_t state) {
+    if (y < min_y || max_y <= y)
+        return;
+
     chunk &c = chunk_loader::instance.load_chunk(
-        x / 16, z / 16
+        x >> 4, z >> 4
     );
 
-    x = std::abs(x);
-    y += std::abs(min_y);
-    z = std::abs(z);
+    y -= min_y;
 
-    c.sections[y / 16].blocks[x % 16][z % 16][y % 16]
+    c.sections[y / 16].blocks[y % 16][z & 15][x & 15]
         = state
     ;
 }

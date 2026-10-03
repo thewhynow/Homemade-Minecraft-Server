@@ -21,7 +21,7 @@ struct chunk_section {
     ;
 
     /**
-     * indexed [x][z][y]
+     * indexed [y][z][x] (protocol order)
      */
 };
 

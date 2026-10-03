@@ -1,13 +1,18 @@
 #include "inc/player.hpp"
+#include "inc/packet.hpp"
+#include "inc/chunk.hpp"
+
+#include <ranges>
 
 player::player(
     net_game_profile &&profile,
+    packet_client_information &&info,
     connection &conn
 ):
     entity(profile.uuid()),
     profile(std::move(profile)),
     conn(conn),
-    teleport_id(0)
+    client_info(info)
 {}
 
 void player::tick() {
@@ -16,7 +21,7 @@ void player::tick() {
     ;
 
     if (new_cx != chunk_x || new_cz != chunk_z){
-        set_center_chunk();
+        set_center_chunk(new_cx, new_cz);
     }
 }
 
@@ -30,9 +35,11 @@ void player::on_enter_world(world &w){
     chunk_x = 0.0;
     chunk_z = 0.0;
 
+    teleport_id = std::rand();
+
     packet_player_position sync = {
         {(uint8_t) packet_id::play::player_position},
-        {(int32_t) ++teleport_id},
+        {*teleport_id},
         {pos.x}, {pos.y}, {pos.z},
         {vel.x}, {vel.y}, {vel.z},
         {yaw}, {pitch},
@@ -48,8 +55,31 @@ void player::on_enter_world(world &w){
     conn.queue_packet(wait_for_chunks);
 }
 
-void player::set_center_chunk(){
-    
+void player::set_center_chunk(int32_t new_cx, int32_t new_cz){
+    uint8_t render_distance = client_info.view_distance();
+
+    packet_set_center_chunk center_chunk = {
+        {(uint8_t) packet_id::play::set_chunk_cache_center},
+        {new_cx}, {new_cz}
+    };
+
+    const chunk &c = chunk_loader::instance.load_chunk(new_cx, new_cz);
+    std::vector<uint8_t> chunk_bytes;
+    for (const chunk_section &s : c.sections)
+        net_chunk_section{s}.serialize(chunk_bytes);
+
+    packet_level_chunk_with_light chunk = {
+        {(uint8_t) packet_id::play::level_with_chunk_light},
+        {new_cx}, {new_cz},
+        {{/* don't send heightmaps */}},
+        /* uint8_t -> net_ubyte */
+        {{chunk_bytes.begin(), chunk_bytes.end()}},
+        {{/* no block entities, for now */}},
+        /* constructs to light data */
+        net_light_data{c}
+    };
+
+    conn.queue_packet(chunk);
 }
 
 void player::recieve(const packet_accept_teleportation &packet) {
@@ -59,6 +89,8 @@ void player::recieve(const packet_accept_teleportation &packet) {
     pos = {packet.x(), packet.y(), packet.z()};
     pitch = packet.pitch();
     yaw = packet.yaw();
+
+    teleport_id = std::nullopt;
 }
 
 void player::recieve(const packet_move_player_position_rotation &packet) {

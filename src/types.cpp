@@ -1,4 +1,6 @@
 #include "inc/types.hpp"
+#include "inc/chunk.hpp"
+#include "inc/blocks.hpp"
 #include <cstring>
 #include <bit>
 
@@ -234,3 +236,80 @@ size_t net_level_chunk_with_light_block_entities_packed_xz
     return 1;
 }
 
+net_chunk_section::net_chunk_section (
+    chunk_section section
+):
+    net_compound(
+        {0}, {0},
+        section.blocks,
+        section.biomes
+    )
+{
+    for (const std::array<std::array<uint32_t, 16>, 16> &slice : section.blocks)
+        for (const std::array<uint32_t, 16> &row : slice)
+            for (uint32_t b : row)
+                if (b != block::air)
+                    block_count().value++;
+}
+
+net_light_data::net_light_data(
+    const chunk &c
+):
+    net_compound(
+        {std::vector<bool>((size_t) (384 / 16 + 2), true)},
+        {std::vector<bool>((size_t) (384 / 16 + 2), false)},
+        {std::vector<bool>((size_t) (384 / 16 + 2), false)},
+        {std::vector<bool>((size_t) (384 / 16 + 2), false)},
+        {{}},
+        {{}}
+    )
+{
+    /**
+     * treating all light as sky light.
+     * in the future, seperate sky light & block light
+     */
+
+    sky_light_arrays().data.resize (
+        384 / 16 + 2,
+        { std::vector<net_byte>(2048, net_byte {0}) }
+    );
+
+    for (size_t si = 1; si < 384 / 16 + 1; ++si){
+        const chunk_section &section = c.sections[si - 1];
+        auto sli = sky_light_arrays().data[si].data.begin();
+
+        for (
+            const std::array<std::array<uint8_t, 16>, 16> &slice : section.lights
+        )
+            for (const std::array<uint8_t, 16> &row : slice)
+                for (
+                    auto it = row.begin(); it != row.end(); it += 2, sli++
+                ){
+                    *sli =
+                        net_byte {
+                            (int8_t)((*it & 15) | ((*(it + 1) & 15) << 4))
+                        }
+                    ;
+                }
+    }
+
+    /* full sky light in the section above the world */
+    std::fill(
+        sky_light_arrays().data[384 / 16 + 1].data.begin(),
+        sky_light_arrays().data[384 / 16 + 1].data.end(),
+        net_byte {(int8_t) 0xFF}
+    );
+}
+
+net_bitset::net_bitset (const std::vector<bool> &bits):
+    net_prefixed_array({})
+{
+    data.resize(
+        (bits.size() + 63) / 64,
+        net_long {0}
+    );
+
+    for (size_t i = 0; i < bits.size(); ++i)
+        if (bits[i])
+            data[i / 64].value |= (int64_t) ((uint64_t) 1 << (i % 64));
+}

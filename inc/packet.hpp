@@ -414,7 +414,8 @@ struct packet_level_chunk_with_light :
         net_int,
         net_int,
         net_prefixed_array<net_heightmap>,
-        net_prefixed_array<net_byte>,
+        /* technically net_byte but it does not matter */
+        net_prefixed_array<net_ubyte>,
         net_prefixed_array<net_level_chunk_with_light_block_entity>,
         net_light_data
     >
