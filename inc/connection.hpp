@@ -30,8 +30,18 @@ public:
 private:
     friend class player;
 
-    template<typename T>
-    void queue_packet(const T &packet);
+    template <typename T>
+    void queue_packet(
+        const T &packet
+    ){
+        std::vector<uint8_t> serialized;
+        packet.serialize(serialized);
+        outbound.insert(
+            outbound.end(),
+            serialized.begin(),
+            serialized.end()
+        );
+    }
 
     /* only used with an r-value */
     void handle(std::span<uint8_t> &&buff);

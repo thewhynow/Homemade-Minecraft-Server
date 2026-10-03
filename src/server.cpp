@@ -42,6 +42,8 @@ void server::start(){
                 pollfds[i].events |= POLLOUT;
         }
 
+        world::overworld.tick();
+
         remove_connections();
     }
 }

@@ -7,5 +7,5 @@ entity::entity(net_uuid uuid):
 
 entity::~entity() = default;
 
-uint32_t entity::entity_id_counter;
+uint32_t entity::entity_id_counter = 1;
 

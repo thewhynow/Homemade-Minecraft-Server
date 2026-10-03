@@ -48,13 +48,13 @@ chunk &chunk_loader::load_chunk(int32_t cx, int32_t cz) {
 
     chunk_section all_stone = uniform_section (
         block::stone,
-        synced_registries::instance["minecraft:worldgen/biome"]["minecraft:plains"],
+        synced_registries::instance["worldgen_biome"]["minecraft:plains"],
         0
     );
 
     chunk_section all_air = uniform_section (
         block::air,
-        synced_registries::instance["minecraft:worldgen/biome"]["minecraft:plains"],
+        synced_registries::instance["worldgen_biome"]["minecraft:plains"],
         15
     );
 

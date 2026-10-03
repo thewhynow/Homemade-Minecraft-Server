@@ -102,7 +102,7 @@ struct packet :
 
 template <typename... Ps>
 requires (is_packet_v<Ps> && ...)
-static std::variant<Ps...> build_packet (
+static std::optional<std::variant<Ps...>> build_packet (
     std::span<uint8_t> &buff
 ){
     if (buff.empty())
@@ -123,7 +123,7 @@ static std::variant<Ps...> build_packet (
         || ...
     );
 
-    return std::move(*res);
+    return res; /* nullopt if no Ps matched the id */
 
     /*
         i'm going to keep this code here as a reminder of what could've
@@ -462,22 +462,12 @@ struct packet_player_position :
 struct packet_accept_teleportation :
     packet<
         (uint8_t) packet_id::play::accept_teleportation,
-        net_var_int,
-        net_double,
-        net_double,
-        net_double,
-        net_float,
-        net_float
+        net_var_int
     >
 {
     using packet::packet;
 
     PACKET_FIELD(0, id);
-    PACKET_FIELD(1, x);
-    PACKET_FIELD(2, y);
-    PACKET_FIELD(3, z);
-    PACKET_FIELD(4, yaw);
-    PACKET_FIELD(5, pitch);
 };
 
 struct packet_move_player_position_rotation :
@@ -592,4 +582,12 @@ struct packet_set_center_chunk :
 
     PACKET_FIELD(0, cx);
     PACKET_FIELD(1, cz);
+};
+
+struct packet_player_loaded :
+    packet<
+        (uint8_t) packet_id::play::player_loaded
+    >
+{
+    using packet::packet;
 };

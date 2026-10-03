@@ -483,12 +483,6 @@ void connection::handle_configuration(
         case packet_id::configuration::finish: {
             packet_finish_configuration packet(buff);
 
-            player *pending = world::overworld.add_player (
-                std::move(*plr)
-            );
-            delete plr;
-            plr = pending;
-
             packet_login response {
                 {(uint8_t) packet_id::play::login},
                 {(int32_t) plr->id},
@@ -498,8 +492,7 @@ void connection::handle_configuration(
                 {false}, {true}, {true},
                 {
                     synced_registries::instance
-                        ["minecraft:dimension_type"]
-                        ["minecraft:overworld"]
+                        ["dimension_type"]["minecraft:overworld"]
                 },
                 {"minecraft:overworld"},
                 {0},
@@ -510,8 +503,13 @@ void connection::handle_configuration(
                 {0}, {60},
                 {false}, {false}
             };
-
             queue_packet(response);
+
+            player *pending = world::overworld.add_player (
+                std::move(*plr)
+            );
+            delete plr;
+            plr = pending;
 
             state = play;
             break;
@@ -523,26 +521,17 @@ void connection::handle_configuration(
     }
 }
 
-template <typename T>
-void connection::queue_packet(
-    const T &packet
-){
-    std::vector<uint8_t> serialized;
-    packet.serialize(serialized);
-    outbound.insert(
-        outbound.end(),
-        serialized.begin(),
-        serialized.end()
-    );
-}
-
 void connection::handle_play(std::span<uint8_t> &buff){
     auto packet_variant =
         build_packet<
             packet_accept_teleportation,
-            packet_move_player_position_rotation
+            packet_move_player_position_rotation,
+            packet_player_loaded
         > (buff)
     ;
 
-    plr->recieve(packet_variant);
+    if (!packet_variant)
+        return; /* unhandled play packet, ignore */
+
+    plr->recieve(*packet_variant);
 }

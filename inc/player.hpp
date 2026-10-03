@@ -13,7 +13,6 @@ class player : public entity {
 public:
     player (
         net_game_profile &&profile,
-        packet_client_information &&info,
         connection &conn
     );
 
@@ -51,10 +50,11 @@ public:
     > loaded_chunks;
 private:
     std::optional<int32_t> teleport_id;
-    packet_client_information client_info;
 
 private:
     void recieve(const packet_accept_teleportation &packet);
 
     void recieve(const packet_move_player_position_rotation &packet);
+
+    void recieve(const packet_player_loaded &packet);
 };

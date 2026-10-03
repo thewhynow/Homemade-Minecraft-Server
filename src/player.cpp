@@ -2,17 +2,13 @@
 #include "inc/packet.hpp"
 #include "inc/chunk.hpp"
 
-#include <ranges>
-
 player::player(
     net_game_profile &&profile,
-    packet_client_information &&info,
     connection &conn
 ):
     entity(profile.uuid()),
     profile(std::move(profile)),
-    conn(conn),
-    client_info(info)
+    conn(conn)
 {}
 
 void player::tick() {
@@ -22,6 +18,9 @@ void player::tick() {
 
     if (new_cx != chunk_x || new_cz != chunk_z){
         set_center_chunk(new_cx, new_cz);
+
+        chunk_x = new_cx;
+        chunk_z = new_cz;
     }
 }
 
@@ -32,8 +31,11 @@ void player::on_enter_world(world &w){
     vel = {0.0, 0.0, 0.0};
     pitch = 0.0f;
     yaw = 0.0f;
-    chunk_x = 0.0;
-    chunk_z = 0.0;
+
+    /* force set_center_chunk on first tick */
+
+    chunk_x = INT32_MIN;
+    chunk_z = INT32_MIN;
 
     teleport_id = std::rand();
 
@@ -56,12 +58,11 @@ void player::on_enter_world(world &w){
 }
 
 void player::set_center_chunk(int32_t new_cx, int32_t new_cz){
-    uint8_t render_distance = client_info.view_distance();
-
     packet_set_center_chunk center_chunk = {
         {(uint8_t) packet_id::play::set_chunk_cache_center},
         {new_cx}, {new_cz}
     };
+    conn.queue_packet(center_chunk);
 
     const chunk &c = chunk_loader::instance.load_chunk(new_cx, new_cz);
     std::vector<uint8_t> chunk_bytes;
@@ -83,12 +84,9 @@ void player::set_center_chunk(int32_t new_cx, int32_t new_cz){
 }
 
 void player::recieve(const packet_accept_teleportation &packet) {
+    /* pos was already set when the teleport was sent */
     if ((uint32_t) packet.id() != teleport_id)
         return;
-
-    pos = {packet.x(), packet.y(), packet.z()};
-    pitch = packet.pitch();
-    yaw = packet.yaw();
 
     teleport_id = std::nullopt;
 }
@@ -100,4 +98,8 @@ void player::recieve(const packet_move_player_position_rotation &packet) {
     on_ground = packet.flags() &
         (uint8_t) packet_move_player_position_rotation::flags_bitfields::on_ground
     ;
+}
+
+void player::recieve(const packet_player_loaded &packet) {
+
 }

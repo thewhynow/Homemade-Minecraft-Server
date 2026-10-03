@@ -35,12 +35,12 @@ void world::set_block(int32_t x, int32_t y, int32_t z, uint32_t state) {
     ;
 }
 
-player *world::add_player(player &&player) {
-    uint32_t id = player.id;
-    class player *plr = new class player {std::move(player)};
-    plr->on_enter_world(*this);
-    entities[player.id] = std::unique_ptr<entity> {(entity*) plr};
-    return (class player*) entities[id].get();
+player *world::add_player(player &&plr) {
+    uint32_t id = plr.id;
+    player *plr_p = new player {std::move(plr)};
+    plr_p->on_enter_world(*this);
+    entities[plr_p->id] = std::unique_ptr<entity> {(entity*) plr_p};
+    return (player*) entities[id].get();
 }
 
 void world::tick() {

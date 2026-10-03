@@ -38,7 +38,7 @@ public:
 
 namespace std {
     template <>
-    struct std::hash<entity> {
+    struct hash<entity> {
         std::size_t operator() (const entity &e)
         const noexcept {
             return  std::hash<uint32_t>{}(e.id);
