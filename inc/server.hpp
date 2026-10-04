@@ -20,6 +20,7 @@ private:
     void set_main_fd();
     void accept_connection();
     void remove_connections();
+    void route_packets();
 private:
     pollfd spollfd;
     std::vector<pollfd> pollfds;

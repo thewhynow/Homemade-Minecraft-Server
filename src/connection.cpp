@@ -276,13 +276,13 @@ void connection::handle_configuration(
             );
 
             const registry &banner_pattern_reg =
-                synced_registries::instance["banner_pattern"]
+                synced_registries::instance["minecraft:banner_pattern"]
             ;
             const registry &damage_type_reg =
-                synced_registries::instance["damage_type"]
+                synced_registries::instance["minecraft:damage_type"]
             ;
             const registry &timeline_reg =
-                synced_registries::instance["timeline"]
+                synced_registries::instance["minecraft:timeline"]
             ;
 
             queue_packet(
@@ -492,7 +492,7 @@ void connection::handle_configuration(
                 {false}, {true}, {true},
                 {
                     synced_registries::instance
-                        ["dimension_type"]["minecraft:overworld"]
+                        ["minecraft:dimension_type"]["minecraft:overworld"]
                 },
                 {"minecraft:overworld"},
                 {0},

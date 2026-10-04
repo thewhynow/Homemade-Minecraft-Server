@@ -13,73 +13,73 @@ int registry::operator[]
 const registry &synced_registries::operator[]
     (std::string_view id) const
 {
-    if (id == "banner_pattern")
+    if (id == "minecraft:banner_pattern")
         return banner_pattern;
 
-    if (id == "damage_type")
+    if (id == "minecraft:damage_type")
         return damage_type;
 
-    if (id == "dimension_type")
+    if (id == "minecraft:dimension_type")
         return dimension_type;
 
-    if (id == "instrument")
+    if (id == "minecraft:instrument")
         return instrument;
 
-    if (id == "jukebox_song")
+    if (id == "minecraft:jukebox_song")
         return jukebox_song;
 
-    if (id == "painting_variant")
+    if (id == "minecraft:painting_variant")
         return painting_variant;
 
-    if (id == "sulfur_cube_archetype")
+    if (id == "minecraft:sulfur_cube_archetype")
         return sulfur_cube_archetype;
 
-    if (id == "timeline")
+    if (id == "minecraft:timeline")
         return timeline;
 
-    if (id == "trim_material")
+    if (id == "minecraft:trim_material")
         return trim_material;
 
-    if (id == "world_clock")
+    if (id == "minecraft:world_clock")
         return world_clock;
 
-    if (id == "worldgen_biome")
+    if (id == "minecraft:worldgen/biome")
         return worldgen_biome;
 
-    if (id == "cat_variant")
+    if (id == "minecraft:cat_variant")
         return cat_variant;
 
-    if (id == "cat_sound_variant")
+    if (id == "minecraft:cat_sound_variant")
         return cat_sound_variant;
 
-    if (id == "chicken_variant")
+    if (id == "minecraft:chicken_variant")
         return chicken_variant;
 
-    if (id == "chicken_sound_variant")
+    if (id == "minecraft:chicken_sound_variant")
         return chicken_sound_variant;
 
-    if (id == "cow_variant")
+    if (id == "minecraft:cow_variant")
         return cow_variant;
 
-    if (id == "cow_sound_variant")
+    if (id == "minecraft:cow_sound_variant")
         return cow_sound_variant;
 
-    if (id == "frog_variant")
+    if (id == "minecraft:frog_variant")
         return frog_variant;
 
-    if (id == "pig_variant")
+    if (id == "minecraft:pig_variant")
         return pig_variant;
 
-    if (id == "pig_sound_variant")
+    if (id == "minecraft:pig_sound_variant")
         return pig_sound_variant;
 
-    if (id == "wolf_variant")
+    if (id == "minecraft:wolf_variant")
         return wolf_variant;
 
-    if (id == "wolf_sound_variant")
+    if (id == "minecraft:wolf_sound_variant")
         return wolf_sound_variant;
 
-    if (id == "zombie_nautilus_variant")
+    if (id == "minecraft:zombie_nautilus_variant")
         return zombie_nautilus_variant;
 
     throw std::out_of_range("bad registry");

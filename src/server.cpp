@@ -1,4 +1,6 @@
 #include "inc/server.hpp"
+#include <chrono>
+#include <thread>
 
 server server::instance;
 
@@ -7,44 +9,60 @@ server::server() = default;
 void server::start(){
     set_main_fd();
 
+    auto last = std::chrono::steady_clock::now();
+
+    constexpr auto tick = std::chrono::milliseconds(50); /* 20 tps */
+    constexpr double dt = 0.05; /* seconds per set */
+
+    auto next = std::chrono::steady_clock::now();
+
     while (true){
         pollfds.insert(pollfds.begin(), spollfd);
 
-        /* 20 ticks / s -> 50 ms / tick */
-        int err = poll(pollfds.data(), pollfds.size(), 50);
+        int err = poll(pollfds.data(), pollfds.size(), -1);
         if (err < 0)
             throw std::runtime_error("poll(2) failed");
 
         if (pollfds[0].revents & POLLIN)
-            try {
-                accept_connection();
-            }
-            catch (const failed_accept &)
-            {}
+            try { accept_connection(); }
+            catch (const failed_accept &) {}
 
         pollfds.erase(pollfds.begin());
 
-        for (size_t i = 0; i < pollfds.size(); ++i){
-            if (pollfds[i].revents & POLLOUT){
-                connections[i]->on_write();
+        route_packets();
 
-                if (!connections[i]->has_outbound_data())
-                    pollfds[i].events &= ~POLLOUT;
-            }
-
-            if (connections[i]->is_dead())
-                continue;
-
-            if (pollfds[i].revents & POLLIN)
-                connections[i]->on_read();
-
-            if (connections[i]->has_outbound_data())
-                pollfds[i].events |= POLLOUT;
-        }
+        remove_connections();
 
         world::overworld.tick();
 
-        remove_connections();
+        next += tick;
+        auto now = std::chrono::steady_clock::now();
+
+        /* so I can debug without headaches */
+        if (now - next > tick * 5)
+            next = now;
+
+        std::this_thread::sleep_until(next);
+    }
+}
+
+void server::route_packets(){
+    for (size_t i = 0; i < pollfds.size(); ++i){
+        if (pollfds[i].revents & POLLOUT){
+            connections[i]->on_write();
+
+            if (!connections[i]->has_outbound_data())
+                pollfds[i].events &= ~POLLOUT;
+        }
+
+        if (connections[i]->is_dead())
+            continue;
+
+        if (pollfds[i].revents & POLLIN)
+            connections[i]->on_read();
+
+        if (connections[i]->has_outbound_data())
+            pollfds[i].events |= POLLOUT;
     }
 }
 
