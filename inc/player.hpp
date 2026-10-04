@@ -50,7 +50,9 @@ public:
     > loaded_chunks;
 private:
     std::optional<int32_t> teleport_id;
+    std::optional<int32_t> heartbeat_id;
 
+    double time_since_sent_heartbeat;
 private:
     void recieve(const packet_accept_teleportation &packet);
 

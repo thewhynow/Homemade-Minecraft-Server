@@ -9,11 +9,7 @@ server::server() = default;
 void server::start(){
     set_main_fd();
 
-    auto last = std::chrono::steady_clock::now();
-
     constexpr auto tick = std::chrono::milliseconds(50); /* 20 tps */
-    constexpr double dt = 0.05; /* seconds per set */
-
     auto next = std::chrono::steady_clock::now();
 
     while (true){

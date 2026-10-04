@@ -44,6 +44,8 @@ namespace packet_id {
         set_chunk_cache_center = 94,
         level_with_chunk_light = 45,
         player_loaded          = 44,
+        heartbeat_client_bound = 45,
+        heartbeat_server_bound = 28
     };
 };
 
@@ -590,4 +592,16 @@ struct packet_player_loaded :
     >
 {
     using packet::packet;
+};
+
+struct packet_keep_alive :
+    packet<
+        /* changes based on client/server bound but setting it to this is easier for API */
+        (uint8_t) packet_id::play::heartbeat_server_bound,
+        net_long
+    >
+{
+    using packet::packet;
+
+    PACKET_FIELD(0, id);
 };

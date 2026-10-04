@@ -22,6 +22,20 @@ void player::tick() {
         chunk_x = new_cx;
         chunk_z = new_cz;
     }
+
+    time_since_sent_heartbeat += 0.05;
+    if (time_since_sent_heartbeat > 10.0){
+        heartbeat_id = rand();
+
+        conn.queue_packet(
+            packet_keep_alive {
+                {(uint8_t) packet_id::play::heartbeat_client_bound},
+                {*heartbeat_id}
+            }
+        );
+
+        time_since_sent_heartbeat = 0;
+    }
 }
 
 void player::on_enter_world(world &w){
@@ -33,7 +47,6 @@ void player::on_enter_world(world &w){
     yaw = 0.0f;
 
     /* force set_center_chunk on first tick */
-
     chunk_x = INT32_MIN;
     chunk_z = INT32_MIN;
 
