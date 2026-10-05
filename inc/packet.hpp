@@ -76,7 +76,19 @@ struct packet :
     static inline constexpr uint8_t Id = IdTemplate;
 
     using body = net_compound<net_var_int, Ts...>;
-    using body::body;
+
+    packet(std::span<uint8_t> &buff):
+        body(buff)
+    {}
+
+    packet(Ts... vals):
+        body(Id, std::move(vals)...)
+    {}
+
+    /* for packets whose id differs based on server / client bound */
+    packet(net_var_int id, Ts... vals):
+        body(id, std::move(vals)...)
+    {}
 
     auto &id(){
         return this-> template get<0>();

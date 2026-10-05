@@ -59,4 +59,6 @@ private:
     void recieve(const packet_move_player_position_rotation &packet);
 
     void recieve(const packet_player_loaded &packet);
+
+    void recieve(const packet_keep_alive &packet);
 };

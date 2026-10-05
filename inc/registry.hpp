@@ -13,7 +13,6 @@ struct registry : packet_registry_data {
         net_registry_data_entry (&&arr)[N]
     ):
         packet_registry_data{
-            (uint8_t) packet_id::configuration::registry,
             name, {{}}
         }
     {

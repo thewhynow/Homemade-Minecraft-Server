@@ -146,7 +146,6 @@ void connection::handle(
             packet_status_request packet(buff);
 
             packet_status_response response(
-                {(uint8_t) packet_id::status::response},
                 {
                     "{                                  \n"
                     "    \"version\": {                 \n"
@@ -170,7 +169,6 @@ void connection::handle(
             packet_ping_request packet(buff);
 
             packet_pong_response response(
-                {(uint8_t) packet_id::status::pong},
                 {packet.timestamp()}
             );
 
@@ -189,7 +187,6 @@ void connection::handle(
             };
 
             packet_login_finished response {
-                {(uint8_t) packet_id::login::finished},
                 profile, {0, 0}
             };
 
@@ -287,7 +284,6 @@ void connection::handle_configuration(
 
             queue_packet(
                 packet_update_tags {
-                    (uint8_t) packet_id::configuration::update_tags,
                     {
                         {
                             {
@@ -465,9 +461,7 @@ void connection::handle_configuration(
                 }
             );
 
-            packet_finish_configuration response {
-                (uint8_t) packet_id::configuration::finish
-            };
+            packet_finish_configuration response {};
 
             queue_packet(response);
 
@@ -484,7 +478,6 @@ void connection::handle_configuration(
             packet_finish_configuration packet(buff);
 
             packet_login response {
-                {(uint8_t) packet_id::play::login},
                 {(int32_t) plr->id},
                 {false},
                 {{{"minecraft:overworld"}}},

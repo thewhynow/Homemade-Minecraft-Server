@@ -53,7 +53,6 @@ void player::on_enter_world(world &w){
     teleport_id = std::rand();
 
     packet_player_position sync = {
-        {(uint8_t) packet_id::play::player_position},
         {*teleport_id},
         {pos.x}, {pos.y}, {pos.z},
         {vel.x}, {vel.y}, {vel.z},
@@ -63,7 +62,6 @@ void player::on_enter_world(world &w){
     conn.queue_packet(sync);
 
     packet_game_event wait_for_chunks {
-        {(uint8_t) packet_id::play::game_event},
         {(uint8_t) packet_game_event::events::wait_for_chunks},
         {0.0f}
     };
@@ -72,7 +70,6 @@ void player::on_enter_world(world &w){
 
 void player::set_center_chunk(int32_t new_cx, int32_t new_cz){
     packet_set_center_chunk center_chunk = {
-        {(uint8_t) packet_id::play::set_chunk_cache_center},
         {new_cx}, {new_cz}
     };
     conn.queue_packet(center_chunk);
@@ -83,7 +80,6 @@ void player::set_center_chunk(int32_t new_cx, int32_t new_cz){
         net_chunk_section{s}.serialize(chunk_bytes);
 
     packet_level_chunk_with_light chunk = {
-        {(uint8_t) packet_id::play::level_with_chunk_light},
         {new_cx}, {new_cz},
         {{/* don't send heightmaps */}},
         /* uint8_t -> net_ubyte */
