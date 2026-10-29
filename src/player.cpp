@@ -86,7 +86,7 @@ void player::set_center_chunk(int32_t new_cx, int32_t new_cz){
     /* send a 5x5 area surrounding the center chunk, fuck render distance */
     for (int32_t xi = new_cx - 2; xi <= new_cx + 2; ++xi)
         for (int32_t zi = new_cz - 2; zi <= new_cz + 2; ++zi){
-            const chunk &c = chunk_loader::instance.load_chunk(new_cx, new_cz);
+            const chunk &c = chunk_loader::instance.load_chunk(xi, zi);
             std::vector<uint8_t> chunk_bytes;
             for (const chunk_section &s : c.sections)
                 net_chunk_section{s}.serialize(chunk_bytes);
@@ -119,7 +119,7 @@ void player::recieve(const packet_accept_teleportation &packet) {
 }
 
 void player::recieve(const packet_move_player_position_rotation &packet) {
-    pos = {packet.x(), packet.feet_y() - 1.62, packet.z()};
+    pos = {packet.x(), packet.feet_y(), packet.z()};
     yaw = packet.yaw();
     pitch = packet.pitch();
     on_ground = packet.flags() &
@@ -136,4 +136,25 @@ void player::recieve(const packet_keep_alive &packet) {
         on_leave();
     else
         heartbeat_id = std::nullopt;
+}
+
+void player::recieve(const packet_move_player_position &packet){
+    pos = {packet.x(), packet.feet_y(), packet.z()};
+    on_ground = packet.flags() &
+        (uint8_t) packet_move_player_position::flags::on_ground
+    ;
+}
+
+void player::recieve(const packet_move_player_rotation &packet){
+    yaw = packet.yaw();
+    pitch = packet.pitch();
+    on_ground = packet.flags() &
+        (uint8_t) packet_move_player_rotation::flags::on_ground
+    ;
+}
+
+void player::recieve(const packet_move_player_status_only &packet){
+    on_ground = packet.flags() &
+        (uint8_t) packet_move_player_status_only::flags::on_ground
+    ;
 }

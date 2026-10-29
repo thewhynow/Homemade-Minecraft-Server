@@ -62,4 +62,10 @@ private:
     void recieve(const packet_player_loaded &packet);
 
     void recieve(const packet_keep_alive &packet);
+
+    void recieve(const packet_move_player_position &packet);
+
+    void recieve(const packet_move_player_rotation &packet);
+
+    void recieve(const packet_move_player_status_only &packet);
 };

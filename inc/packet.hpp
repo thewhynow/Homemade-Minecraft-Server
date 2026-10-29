@@ -45,7 +45,10 @@ namespace packet_id {
         level_with_chunk_light = 45,
         player_loaded          = 44,
         heartbeat_client_bound = 44,
-        heartbeat_server_bound = 28
+        heartbeat_server_bound = 28,
+        mov_player_pos         = 30,
+        mov_player_rot         = 32,
+        mov_player_status_only = 33,
     };
 };
 
@@ -616,4 +619,62 @@ struct packet_keep_alive :
     using packet::packet;
 
     PACKET_FIELD(0, id);
+};
+
+struct packet_move_player_position :
+    packet<
+        (uint8_t) packet_id::play::mov_player_pos,
+        net_double,
+        net_double,
+        net_double,
+        net_byte
+    >
+{
+    using packet::packet;
+
+    PACKET_FIELD(0, x);
+    PACKET_FIELD(1, feet_y);
+    PACKET_FIELD(2, z);
+    PACKET_FIELD(3, flags);
+
+    enum class flags : uint8_t {
+        on_ground = 0x01,
+        against_wall = 0x02
+    };
+};
+
+struct packet_move_player_rotation :
+    packet<
+        (uint8_t) packet_id::play::mov_player_rot,
+        net_float,
+        net_float,
+        net_byte
+    >
+{
+    using packet::packet;
+
+    PACKET_FIELD(0, yaw);
+    PACKET_FIELD(1, pitch);
+    PACKET_FIELD(2, flags);
+
+    enum class flags : uint8_t {
+        on_ground = 0x01,
+        against_wall = 0x02
+    };
+};
+
+struct packet_move_player_status_only :
+    packet<
+        (uint8_t) packet_id::play::mov_player_status_only,
+        net_byte
+    >
+{
+    using packet::packet;
+
+    PACKET_FIELD(0, flags);
+
+    enum class flags : uint8_t {
+        on_ground = 0x01,
+        against_wall = 0x02
+    };
 };
