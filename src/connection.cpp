@@ -14,8 +14,16 @@ connection::connection(socket_wrapper &&sock):
     sock(std::move(sock)),
     state(handshake),
     inbound_size(0),
+    owns_plr(false),
     plr(nullptr)
 {}
+
+connection::~connection(){
+    if (owns_plr)
+        delete plr;
+    else if (plr && plr->dimension) /* if the player leaves normally */
+        plr->dimension->rem_player(plr);
+}
 
 void connection::on_read(){
     uint8_t temp_buff[4096];
@@ -196,6 +204,8 @@ void connection::handle(
             plr = new player(
                 std::move(profile), *this
             );
+
+            owns_plr = true;
 
             break;
         }
@@ -504,6 +514,8 @@ void connection::handle_configuration(
             delete plr;
             plr = pending;
 
+            owns_plr = false;
+
             state = play;
             break;
         }
@@ -519,7 +531,8 @@ void connection::handle_play(std::span<uint8_t> &buff){
         build_packet<
             packet_accept_teleportation,
             packet_move_player_position_rotation,
-            packet_player_loaded
+            packet_player_loaded,
+            packet_keep_alive
         > (buff)
     ;
 

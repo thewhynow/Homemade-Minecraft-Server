@@ -43,8 +43,15 @@ player *world::add_player(player &&plr) {
     return (player*) entities[id].get();
 }
 
+void world::rem_player(player *player) {
+    auto kv_pair = entities.extract(player->id);
+    to_destroy.insert(std::move(kv_pair));
+}
+
 void world::tick() {
     for (auto &[id, entity] : entities)
         entity->tick();
+
+    to_destroy.clear();
 }
 

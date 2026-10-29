@@ -15,7 +15,7 @@ void server::start(){
     while (true){
         pollfds.insert(pollfds.begin(), spollfd);
 
-        int err = poll(pollfds.data(), pollfds.size(), -1);
+        int err = poll(pollfds.data(), pollfds.size(), 0);
         if (err < 0)
             throw std::runtime_error("poll(2) failed");
 

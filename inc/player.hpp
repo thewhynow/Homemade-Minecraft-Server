@@ -39,20 +39,21 @@ public:
     void on_enter_world(world &w);
 private:
     void set_center_chunk(int32_t new_cx, int32_t new_cz);
+
+    void on_leave();
 public:
     net_game_profile profile;
 
     connection &conn;
 
     std::unordered_set<
-        /* x, z */
-        std::pair<int32_t, int32_t>
+        /* x, z */ std::pair<int32_t, int32_t>
     > loaded_chunks;
 private:
     std::optional<int32_t> teleport_id;
     std::optional<int32_t> heartbeat_id;
 
-    double time_since_sent_heartbeat;
+    double time_since_sent_heartbeat {0.0};
 private:
     void recieve(const packet_accept_teleportation &packet);
 

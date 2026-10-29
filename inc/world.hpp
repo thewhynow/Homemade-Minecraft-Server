@@ -23,6 +23,9 @@ public:
     /* returns a NON-OWNING POINTER */
     player *add_player(player &&player);
 
+    /* bullshit ass destructor fucking hook */
+    void    rem_player(player *player);
+
     void tick();
 private:
     static constexpr int32_t min_y = -64;
@@ -33,4 +36,8 @@ private:
     std::unordered_map<
         uint32_t, std::unique_ptr<entity>
     > entities;
+
+    std::unordered_map<
+        uint32_t, std::unique_ptr<entity>
+    > to_destroy;
 };

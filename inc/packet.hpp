@@ -44,7 +44,7 @@ namespace packet_id {
         set_chunk_cache_center = 94,
         level_with_chunk_light = 45,
         player_loaded          = 44,
-        heartbeat_client_bound = 45,
+        heartbeat_client_bound = 44,
         heartbeat_server_bound = 28
     };
 };

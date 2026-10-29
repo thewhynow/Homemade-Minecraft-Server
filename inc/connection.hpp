@@ -9,6 +9,7 @@ class player;
 class connection {
 public:
     connection(socket_wrapper &&sock);
+    ~connection();
 
 public:
     void on_read();
@@ -59,8 +60,6 @@ private:
     std::vector<uint8_t> inbound_buff;
     net_var_int inbound_size;
 
-    /**
-     * only owning while NOT in play state
-     */
+    bool owns_plr;
     player *plr;
 };
