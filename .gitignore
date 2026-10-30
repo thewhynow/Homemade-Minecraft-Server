@@ -2,4 +2,5 @@ build
 main
 *.txt
 .*
-docs
+reports/biome_parameters/*
+reports/minecraft/*
