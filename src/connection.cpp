@@ -276,20 +276,20 @@ void connection::handle_configuration(
             );
 
         success:
-            synced_registries::instance.queue_packets(
+            registry_manager::instance.queue_synced_registries_packets(
                 [this](const packet_registry_data &packet) -> void {
                     queue_packet(packet);
                 }
             );
 
             const registry &banner_pattern_reg =
-                synced_registries::instance["minecraft:banner_pattern"]
+                registry_manager::instance["minecraft:banner_pattern"]
             ;
             const registry &damage_type_reg =
-                synced_registries::instance["minecraft:damage_type"]
+                registry_manager::instance["minecraft:damage_type"]
             ;
             const registry &timeline_reg =
-                synced_registries::instance["minecraft:timeline"]
+                registry_manager::instance["minecraft:timeline"]
             ;
 
             queue_packet(
@@ -494,7 +494,7 @@ void connection::handle_configuration(
                 {-1}, {2}, {4},
                 {false}, {true}, {true},
                 {
-                    synced_registries::instance
+                    registry_manager::instance
                         ["minecraft:dimension_type"]["minecraft:overworld"]
                 },
                 {"minecraft:overworld"},
@@ -532,7 +532,11 @@ void connection::handle_play(std::span<uint8_t> &buff){
             packet_accept_teleportation,
             packet_move_player_position_rotation,
             packet_player_loaded,
-            packet_keep_alive
+            packet_keep_alive,
+            packet_move_player_position,
+            packet_move_player_rotation,
+            packet_move_player_status_only,
+            packet_player_action
         > (buff)
     ;
 

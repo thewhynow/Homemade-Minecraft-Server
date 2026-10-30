@@ -6,15 +6,19 @@
 struct registry : packet_registry_data {
     using packet_registry_data::packet_registry_data;
 
+    std::optional<net_registry_data_entry> default_value;
+
     template <size_t N>
     registry(
         std::string_view name,
         /* rvalue array */
-        net_registry_data_entry (&&arr)[N]
+        net_registry_data_entry (&&arr)[N],
+        std::optional<net_registry_data_entry> &&default_value = std::nullopt
     ):
         packet_registry_data{
             name, {{}}
-        }
+        },
+        default_value(std::move(default_value))
     {
         entries().data.reserve(N);
 
@@ -22,45 +26,22 @@ struct registry : packet_registry_data {
             entries().data.push_back(std::move(i));
     }
 
-    int operator[] (std::string_view id) const ;
+    int operator[] (std::string_view id) const;
+    std::string_view operator[] (int id) const;
 };
 
-class synced_registries {
+class registry_manager {
 private:
-    synced_registries();
+    registry_manager();
 public:
-    void queue_packets(
+    static registry_manager instance;
+
+    const registry &operator[] (std::string_view id) const;
+
+    void queue_synced_registries_packets (
         std::function<void(const packet_registry_data &)> callback
     );
 
-    const registry &operator[]
-        (std::string_view id) const
-    ;
-
-    static synced_registries instance;
 private:
-    registry banner_pattern,
-             damage_type,
-             dimension_type,
-             instrument,
-             jukebox_song,
-             painting_variant,
-             sulfur_cube_archetype,
-             timeline,
-             trim_material,
-             world_clock,
-             worldgen_biome,
-             cat_variant,
-             cat_sound_variant,
-             chicken_variant,
-             chicken_sound_variant,
-             cow_variant,
-             cow_sound_variant,
-             frog_variant,
-             pig_variant,
-             pig_sound_variant,
-             wolf_variant,
-             wolf_sound_variant,
-             zombie_nautilus_variant
-    ;
+    std::array<registry, 118> registries;
 };

@@ -1,4 +1,5 @@
 #include "inc/player.hpp"
+#include "inc/blocks.hpp"
 #include "inc/packet.hpp"
 #include "inc/chunk.hpp"
 #include "inc/world.hpp"
@@ -11,7 +12,8 @@ player::player(
 ):
     entity(profile.uuid()),
     profile(std::move(profile)),
-    conn(conn)
+    conn(conn),
+    game_mode(game_modes::survival)
 {}
 
 void player::tick() {
@@ -157,4 +159,40 @@ void player::recieve(const packet_move_player_status_only &packet){
     on_ground = packet.flags() &
         (uint8_t) packet_move_player_status_only::flags::on_ground
     ;
+}
+
+void player::recieve(const packet_player_action &packet){
+    switch (packet_player_action::statuses {(uint8_t) packet.status()}){
+        case packet_player_action::statuses::started_digging: {
+            if (game_mode == game_modes::creative)
+                goto finished_digging_case;
+
+            break;
+        }
+
+        case packet_player_action::statuses::cancelled_digging: {
+            break;
+        }
+
+        case packet_player_action::statuses::finished_digging: {
+        finished_digging_case:
+
+            dimension->set_block(
+                packet.location().x, packet.location().y, packet.location().z,
+                block::air
+            );
+
+            break;
+        }
+
+        default: {
+            throw std::runtime_error("haven't implemented that player action yet");
+        }
+    }
+
+    conn.queue_packet(
+        packet_block_change_acknowledged {
+            packet.sequence()
+        }
+    );
 }

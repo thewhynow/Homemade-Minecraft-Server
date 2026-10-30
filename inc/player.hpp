@@ -49,6 +49,9 @@ public:
     std::unordered_set<
         /* x, z */ std::pair<int32_t, int32_t>
     > loaded_chunks;
+
+    using game_modes = packet_login::game_modes;
+    game_modes game_mode;
 private:
     std::optional<int32_t> teleport_id;
     std::optional<int32_t> heartbeat_id;
@@ -68,4 +71,6 @@ private:
     void recieve(const packet_move_player_rotation &packet);
 
     void recieve(const packet_move_player_status_only &packet);
+
+    void recieve(const packet_player_action &packet);
 };

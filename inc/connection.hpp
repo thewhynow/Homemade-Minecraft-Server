@@ -52,6 +52,7 @@ private:
     );
 
     void handle_play(std::span<uint8_t> &buff);
+
 private:
     socket_wrapper sock;
     connection_state state;

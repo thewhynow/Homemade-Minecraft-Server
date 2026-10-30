@@ -49,6 +49,9 @@ namespace packet_id {
         mov_player_pos         = 30,
         mov_player_rot         = 32,
         mov_player_status_only = 33,
+        player_action          = 41,
+        block_change_ack       = 4,
+        block_update           = 8,
     };
 };
 
@@ -677,4 +680,62 @@ struct packet_move_player_status_only :
         on_ground = 0x01,
         against_wall = 0x02
     };
+};
+
+struct packet_player_action :
+    packet<
+        (uint8_t) packet_id::play::player_action,
+        net_var_int,
+        net_position,
+        net_byte,
+        net_var_int
+    >
+{
+    using packet::packet;
+
+    PACKET_FIELD(0, status);
+    PACKET_FIELD(1, location);
+    PACKET_FIELD(2, face);
+    PACKET_FIELD(3, sequence);
+
+    enum class statuses : int32_t {
+        started_digging   = 0,
+        cancelled_digging = 1,
+        finished_digging  = 2,
+        drop_item_stack   = 3,
+        drop_item         = 4,
+        shoot_arrow       = 5,
+        finish_eating     = 5,
+        swap_item_in_hand = 6,
+        stab              = 7
+    };
+
+    enum class faces : uint8_t {
+        bottom = 0, /* - Y */
+        top    = 1, /* + Y */
+        north  = 2, /* - Z */
+        south  = 3, /* + Z */
+        west   = 4, /* - X */
+        east   = 5  /* + X */
+    };
+};
+
+struct packet_block_change_acknowledged :
+    packet<
+        (uint8_t)packet_id::play::block_change_ack,
+        net_var_int
+    >
+{
+    PACKET_FIELD(0, sequence_id); /* 0-9 */
+};
+
+struct packet_block_update :
+    packet<
+        (uint8_t) packet_id::play::block_update,
+        net_position,
+        net_var_int
+    >
+{
+    PACKET_FIELD(0, location);
+    PACKET_FIELD(1, block_id);
 };
