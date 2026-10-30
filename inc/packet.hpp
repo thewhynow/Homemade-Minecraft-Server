@@ -52,6 +52,7 @@ namespace packet_id {
         player_action          = 41,
         block_change_ack       = 4,
         block_update           = 8,
+        use_item_on            = 66,
     };
 };
 
@@ -726,6 +727,8 @@ struct packet_block_change_acknowledged :
         net_var_int
     >
 {
+    using packet::packet;
+
     PACKET_FIELD(0, sequence_id); /* 0-9 */
 };
 
@@ -736,6 +739,35 @@ struct packet_block_update :
         net_var_int
     >
 {
+    using packet::packet;
+
     PACKET_FIELD(0, location);
     PACKET_FIELD(1, block_id);
+};
+
+struct packet_use_item_on :
+    packet<
+        (uint8_t) packet_id::play::use_item_on,
+        net_var_int,
+        net_position,
+        net_var_int,
+        net_float,
+        net_float,
+        net_float,
+        net_boolean,
+        net_boolean,
+        net_var_int
+    >
+{
+    using packet::packet;
+
+    PACKET_FIELD(0, hand);
+    PACKET_FIELD(1, location);
+    PACKET_FIELD(2, face);
+    PACKET_FIELD(3, cursor_x);
+    PACKET_FIELD(4, cursor_y);
+    PACKET_FIELD(5, cursor_z);
+    PACKET_FIELD(6, inside_block);
+    PACKET_FIELD(7, world_border_hit);
+    PACKET_FIELD(8, sequence_id);
 };

@@ -3,6 +3,7 @@
 #include "inc/packet.hpp"
 #include "inc/chunk.hpp"
 #include "inc/world.hpp"
+#include "inc/registry.hpp"
 
 #include <print>
 
@@ -179,7 +180,14 @@ void player::recieve(const packet_player_action &packet){
 
             dimension->set_block(
                 packet.location().x, packet.location().y, packet.location().z,
-                block::air
+                block::oak_planks
+            );
+
+            conn.queue_packet(
+                packet_block_update {
+                    packet.location(),
+                    block::oak_planks
+                }
             );
 
             break;

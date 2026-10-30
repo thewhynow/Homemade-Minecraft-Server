@@ -13,6 +13,9 @@ main: $(OBJECTS)
 build/%.o: src/%.cpp | build
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
+# registry.cpp is ~15k lines of static data; -O3 takes ~80s, -O0 takes ~2s
+build/registry.o: CXXFLAGS := $(patsubst -O%,-O0,$(CXXFLAGS))
+
 build:
 	mkdir -p build
 
