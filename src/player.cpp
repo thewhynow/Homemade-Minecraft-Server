@@ -1,5 +1,5 @@
 #include "inc/player.hpp"
-#include "inc/blocks.hpp"
+#include "registry/blocks.hpp"
 #include "inc/packet.hpp"
 #include "inc/chunk.hpp"
 #include "inc/world.hpp"

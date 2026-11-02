@@ -1,6 +1,6 @@
 #include "inc/utils.hpp"
 #include "inc/chunk.hpp"
-#include "inc/blocks.hpp"
+#include "registry/blocks.hpp"
 #include "inc/registry.hpp"
 
 #include <algorithm>

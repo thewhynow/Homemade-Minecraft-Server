@@ -9,7 +9,7 @@ def is_stale(inputs, outputs) -> bool:
     return max(os.path.getmtime(i) for i in inputs) > min(os.path.getmtime(o) for o in outputs)
 
 def generate_block_states() -> None:
-    with open("reports/blocks.json", "r") as blocks_json, open("inc/blocks.hpp", "w") as blocks_hpp:
+    with open("reports/blocks.json", "r") as blocks_json, open("registry/blocks.hpp", "w") as blocks_hpp:
         blocks_hpp.write(
 """
 #pragma once
@@ -35,7 +35,7 @@ f"""
         )
 
 def generate_items() -> None:
-    with open("reports/registries.json", "r") as registries_json, open("inc/items.hpp", "w") as items_hpp:
+    with open("reports/registries.json", "r") as registries_json, open("registry/items.hpp", "w") as items_hpp:
         items_hpp.write(
 """
 #pragma once
@@ -54,6 +54,31 @@ f"""
             )
 
         items_hpp.write(
+"""
+};
+"""
+        )
+
+def generate_components() -> None:
+    with open("reports/registries.json", "r") as registries_json, open("registry/components.hpp", "w") as components_hpp:
+        components_hpp.write(
+"""
+#pragma once
+#include <cstdint>
+
+namespace component {
+"""
+        )
+
+        components = json.load(registries_json)["minecraft:data_component_type"]["entries"]
+        for name, data in components.items():
+            components_hpp.write(
+f"""
+    constexpr int32_t {name[10:].replace("/", "_")} = {data["protocol_id"]};
+"""
+            )
+
+        components_hpp.write(
 """
 };
 """
@@ -123,8 +148,9 @@ if __name__ == "__main__":
     force = "--force" in sys.argv
 
     generators = [
-        (generate_block_states, ["reports/blocks.json"], ["inc/blocks.hpp"]),
-        (generate_items, ["reports/registries.json"], ["inc/items.hpp"]),
+        (generate_block_states, ["reports/blocks.json"], ["registry/blocks.hpp"]),
+        (generate_items, ["reports/registries.json"], ["registry/items.hpp"]),
+        (generate_components, ["reports/registries.json"], ["registry/components.hpp"]),
         (generate_registries, ["reports/registries.json"], ["inc/registry.hpp", "src/registry.cpp"]),
     ]
 

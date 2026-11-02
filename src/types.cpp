@@ -1,6 +1,6 @@
 #include "inc/types.hpp"
 #include "inc/chunk.hpp"
-#include "inc/blocks.hpp"
+#include "registry/blocks.hpp"
 #include <cstring>
 #include <bit>
 
@@ -312,4 +312,296 @@ net_bitset::net_bitset (const std::vector<bool> &bits):
     for (size_t i = 0; i < bits.size(); ++i)
         if (bits[i])
             data[i / 64].value |= (int64_t) ((uint64_t) 1 << (i % 64));
+}
+
+net_id_set::net_id_set(std::span<uint8_t> &buff):
+    type(buff)
+{
+    if (type == 0)
+        tag_name = net_identifier {buff};
+    else {
+        if (type < 0)
+            throw malformed_packet("negative id set length");
+
+        ids.emplace();
+        ids->reserve(std::min<size_t>(type - 1, buff.size()));
+
+        for (int32_t i = 0; i < type - 1; ++i)
+            ids->emplace_back(net_var_int {buff});
+    }
+}
+
+void net_id_set::serialize(std::vector<uint8_t> &buff) const {
+    type.serialize(buff);
+
+    if (type == 0)
+        tag_name->serialize(buff);
+    else
+        for (const net_var_int &i : *ids)
+            i.serialize(buff);
+}
+
+size_t net_id_set::size() const {
+    size_t res = type.size();
+
+    if (type == 0)
+        res += tag_name->size();
+    else
+        for (const net_var_int &i : *ids)
+            res += i.size();
+
+    return res;
+}
+
+/*
+struct net_property : net_type {
+    net_string name;
+    net_boolean is_exact_match;
+
+    std::optional<net_string> exact_value;
+    std::optional<net_string> min_value;
+    std::optional<net_string> max_value;
+
+    net_property(std::span<uint8_t> &buff);
+
+    void serialize(std::vector<uint8_t> &buff) const;
+
+    size_t size() const;
+};
+*/
+
+net_property::net_property(std::span<uint8_t> &buff):
+    name(buff),
+    is_exact_match(buff)
+{
+    if (is_exact_match)
+        exact_value.emplace(buff);
+    else {
+        min_value.emplace(buff);
+        max_value.emplace(buff);
+    }
+}
+
+void net_property::serialize(std::vector<uint8_t> &buff) const {
+    name.serialize(buff);
+    is_exact_match.serialize(buff);
+
+    if (is_exact_match)
+        exact_value->serialize(buff);
+    else {
+        min_value->serialize(buff);
+        max_value->serialize(buff);
+    }
+}
+
+size_t net_property::size() const {
+    size_t res = name.size();
+    res += is_exact_match.size();
+
+    if (is_exact_match)
+        res += exact_value->size();
+    else {
+        res += min_value->size();
+        res += max_value->size();
+    }
+
+    return res;
+}
+
+
+net_nbt_any::net_nbt_any(std::span<uint8_t> &buff):
+    data(nbt_type_untagged::build_object(read_be<nbt_tag>(buff), buff))
+{}
+
+net_nbt_any::net_nbt_any(
+    std::unique_ptr<nbt_type_untagged> &&data
+):
+    data(std::move(data))
+{}
+
+void net_nbt_any::serialize(std::vector<uint8_t> &buff) const {
+    write_be(buff, data->get_tag());
+    data->serialize(buff);
+}
+
+size_t net_nbt_any::size() const {
+    return sizeof(nbt_tag) + data->size();
+}
+
+net_sound_event::net_sound_event(std::span<uint8_t> &buff):
+    sound_name(buff),
+    has_fixed_range(buff),
+    fixed_range(
+        has_fixed_range
+            ? std::optional<net_float>(std::in_place, buff)
+            : std::nullopt
+    )
+{}
+
+net_sound_event::net_sound_event(std::string_view sound_name):
+    sound_name(sound_name),
+    has_fixed_range(false)
+{}
+
+net_sound_event::net_sound_event(
+    std::string_view sound_name, float fixed_range
+):
+    sound_name(sound_name),
+    has_fixed_range(true),
+    fixed_range(fixed_range)
+{}
+
+void net_sound_event::serialize(std::vector<uint8_t> &buff) const {
+    sound_name.serialize(buff);
+    has_fixed_range.serialize(buff);
+
+    if (has_fixed_range)
+        fixed_range->serialize(buff);
+}
+
+size_t net_sound_event::size() const {
+    size_t res = sound_name.size();
+    res += has_fixed_range.size();
+
+    if (has_fixed_range)
+        res += fixed_range->size();
+
+    return res;
+}
+
+static net_consume_effect::effect_variant read_consume_effect(
+    int32_t type, std::span<uint8_t> &buff
+){
+    using types = net_consume_effect::types;
+
+    switch ((types) type){
+        case types::apply_effects:
+            return net_consume_effect_apply_effects{buff};
+        case types::remove_effects:
+            return net_consume_effect_remove_effects{buff};
+        case types::clear_all_effects:
+            return net_consume_effect_clear_all_effects{buff};
+        case types::teleport_randomly:
+            return net_consume_effect_teleport_randomly{buff};
+        case types::play_sound:
+            return net_consume_effect_play_sound{buff};
+    }
+
+    throw malformed_packet("bad consume effect type");
+}
+
+net_consume_effect::net_consume_effect(std::span<uint8_t> &buff):
+    type(buff),
+    effect(read_consume_effect(type, buff))
+{}
+
+net_consume_effect::net_consume_effect(effect_variant &&effect):
+    type((int32_t) effect.index()),
+    effect(std::move(effect))
+{}
+
+void net_consume_effect::serialize(std::vector<uint8_t> &buff) const {
+    type.serialize(buff);
+
+    std::visit(
+        [&](const auto &i){ i.serialize(buff); },
+        effect
+    );
+}
+
+size_t net_consume_effect::size() const {
+    return type.size() + std::visit(
+        [](const auto &i){ return i.size(); },
+        effect
+    );
+}
+
+net_component_lodestone_tracker::net_component_lodestone_tracker(
+    std::span<uint8_t> &buff
+):
+    has_global_position(buff),
+    dimension(
+        has_global_position
+            ? std::optional<net_identifier>(std::in_place, buff)
+            : std::nullopt
+    ),
+    position(
+        has_global_position
+            ? std::optional<net_position>(std::in_place, buff)
+            : std::nullopt
+    ),
+    tracked(buff)
+{}
+
+void net_component_lodestone_tracker::serialize(
+    std::vector<uint8_t> &buff
+) const {
+    has_global_position.serialize(buff);
+
+    if (has_global_position) {
+        dimension->serialize(buff);
+        position->serialize(buff);
+    }
+
+    tracked.serialize(buff);
+}
+
+size_t net_component_lodestone_tracker::size() const {
+    size_t res = has_global_position.size();
+
+    if (has_global_position) {
+        res += dimension->size();
+        res += position->size();
+    }
+
+    return res + tracked.size();
+}
+
+static net_resolvable_profile::profile_variant read_resolvable_profile(
+    int32_t kind, std::span<uint8_t> &buff
+){
+    using kinds = net_resolvable_profile::kinds;
+
+    switch ((kinds) kind){
+        case kinds::partial:
+            return net_resolvable_profile_partial{buff};
+        case kinds::complete:
+            return net_game_profile{buff};
+    }
+
+    throw malformed_packet("bad resolvable profile kind");
+}
+
+net_resolvable_profile::net_resolvable_profile(std::span<uint8_t> &buff):
+    kind(buff),
+    profile(read_resolvable_profile(kind, buff)),
+    body(buff),
+    cape(buff),
+    elytra(buff),
+    model(buff)
+{}
+
+void net_resolvable_profile::serialize(std::vector<uint8_t> &buff) const {
+    kind.serialize(buff);
+
+    std::visit(
+        [&](const auto &i){ i.serialize(buff); },
+        profile
+    );
+
+    body.serialize(buff);
+    cape.serialize(buff);
+    elytra.serialize(buff);
+    model.serialize(buff);
+}
+
+size_t net_resolvable_profile::size() const {
+    return
+        kind.size() +
+        std::visit([](const auto &i){ return i.size(); }, profile) +
+        body.size() +
+        cape.size() +
+        elytra.size() +
+        model.size()
+    ;
 }

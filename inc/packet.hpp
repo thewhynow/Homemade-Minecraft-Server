@@ -783,3 +783,4 @@ struct packet_set_carried_item :
 
     PACKET_FIELD(0, slot);
 };
+

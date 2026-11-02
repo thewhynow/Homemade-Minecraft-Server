@@ -1,5 +1,5 @@
 #include "inc/world.hpp"
-#include "inc/blocks.hpp"
+#include "registry/blocks.hpp"
 
 world::world() = default;
 
