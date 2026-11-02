@@ -14,7 +14,7 @@ player::player(
     entity(profile.uuid()),
     profile(std::move(profile)),
     conn(conn),
-    game_mode(game_modes::survival)
+    game_mode(game_modes::creative)
 {}
 
 void player::tick() {
@@ -180,13 +180,12 @@ void player::recieve(const packet_player_action &packet){
 
             dimension->set_block(
                 packet.location().x, packet.location().y, packet.location().z,
-                block::oak_planks
+                block::air
             );
 
             conn.queue_packet(
                 packet_block_update {
-                    packet.location(),
-                    block::oak_planks
+                    packet.location(), block::air
                 }
             );
 

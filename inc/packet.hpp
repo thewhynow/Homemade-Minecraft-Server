@@ -53,6 +53,7 @@ namespace packet_id {
         block_change_ack       = 4,
         block_update           = 8,
         use_item_on            = 66,
+        set_carried_item       = 54,
     };
 };
 
@@ -764,10 +765,21 @@ struct packet_use_item_on :
     PACKET_FIELD(0, hand);
     PACKET_FIELD(1, location);
     PACKET_FIELD(2, face);
-    PACKET_FIELD(3, cursor_x);
+    PACKET_FIELD(3, cursor_x); /* */
     PACKET_FIELD(4, cursor_y);
     PACKET_FIELD(5, cursor_z);
     PACKET_FIELD(6, inside_block);
     PACKET_FIELD(7, world_border_hit);
     PACKET_FIELD(8, sequence_id);
+};
+
+struct packet_set_carried_item :
+    packet<
+        (uint8_t) packet_id::play::set_carried_item,
+        net_short
+    >
+{
+    using packet::packet;
+
+    PACKET_FIELD(0, slot);
 };

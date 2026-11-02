@@ -499,7 +499,7 @@ void connection::handle_configuration(
                 },
                 {"minecraft:overworld"},
                 {0},
-                {(uint8_t) packet_login::game_modes::survival},
+                {(uint8_t) packet_login::game_modes::creative},
                 {0},
                 {false}, {true},
                 {nullptr},

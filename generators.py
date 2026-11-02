@@ -1,6 +1,12 @@
 import json
 import os
-import fileinput
+import sys
+
+def is_stale(inputs, outputs) -> bool:
+    if not all(os.path.exists(o) for o in outputs):
+        return True
+
+    return max(os.path.getmtime(i) for i in inputs) > min(os.path.getmtime(o) for o in outputs)
 
 def generate_block_states() -> None:
     with open("reports/blocks.json", "r") as blocks_json, open("inc/blocks.hpp", "w") as blocks_hpp:
@@ -23,6 +29,31 @@ f"""
                 )
 
         blocks_hpp.write(
+"""
+};
+"""
+        )
+
+def generate_items() -> None:
+    with open("reports/registries.json", "r") as registries_json, open("inc/items.hpp", "w") as items_hpp:
+        items_hpp.write(
+"""
+#pragma once
+#include <cstdint>
+
+namespace item {
+"""
+        )
+
+        items = json.load(registries_json)["minecraft:item"]["entries"]
+        for name, data in items.items():
+            items_hpp.write(
+f"""
+    constexpr int32_t {name[10:]} = {data["protocol_id"]};
+"""
+            )
+
+        items_hpp.write(
 """
 };
 """
@@ -89,6 +120,18 @@ def generate_registries() -> None:
 
 
 if __name__ == "__main__":
-    generate_block_states()
-    generate_registries()
+    force = "--force" in sys.argv
+
+    generators = [
+        (generate_block_states, ["reports/blocks.json"], ["inc/blocks.hpp"]),
+        (generate_items, ["reports/registries.json"], ["inc/items.hpp"]),
+        (generate_registries, ["reports/registries.json"], ["inc/registry.hpp", "src/registry.cpp"]),
+    ]
+
+    for generator, inputs, outputs in generators:
+        if force or is_stale(inputs + [__file__], outputs):
+            print(f"{generator.__name__}: generating")
+            generator()
+        else:
+            print(f"{generator.__name__}: up to date")
 
