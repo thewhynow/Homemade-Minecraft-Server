@@ -1,8 +1,10 @@
 #include "inc/types.hpp"
 #include "inc/chunk.hpp"
 #include "registry/blocks.hpp"
+#include "inc/component.hpp"
 #include <cstring>
 #include <bit>
+#include <span>
 
 net_string::net_string(
     std::span<uint8_t> &buff, size_t n
@@ -314,6 +316,25 @@ net_bitset::net_bitset (const std::vector<bool> &bits):
             data[i / 64].value |= (int64_t) ((uint64_t) 1 << (i % 64));
 }
 
+net_nbt_any::net_nbt_any(std::span<uint8_t> &buff):
+    data(nbt_type_untagged::build_object(read_be<nbt_tag>(buff), buff))
+{}
+
+net_nbt_any::net_nbt_any(
+    std::unique_ptr<nbt_type_untagged> &&data
+):
+    data(std::move(data))
+{}
+
+void net_nbt_any::serialize(std::vector<uint8_t> &buff) const {
+    write_be(buff, data->get_tag());
+    data->serialize(buff);
+}
+
+size_t net_nbt_any::size() const {
+    return sizeof(nbt_tag) + data->size();
+}
+
 net_id_set::net_id_set(std::span<uint8_t> &buff):
     type(buff)
 {
@@ -351,6 +372,172 @@ size_t net_id_set::size() const {
             res += i.size();
 
     return res;
+}
+
+net_sound_event::net_sound_event(std::span<uint8_t> &buff):
+    sound_name(buff),
+    has_fixed_range(buff),
+    fixed_range(
+        has_fixed_range
+            ? std::optional<net_float>(std::in_place, buff)
+            : std::nullopt
+    )
+{}
+
+net_sound_event::net_sound_event(std::string_view sound_name):
+    sound_name(sound_name),
+    has_fixed_range(false)
+{}
+
+net_sound_event::net_sound_event(
+    std::string_view sound_name, float fixed_range
+):
+    sound_name(sound_name),
+    has_fixed_range(true),
+    fixed_range(fixed_range)
+{}
+
+void net_sound_event::serialize(std::vector<uint8_t> &buff) const {
+    sound_name.serialize(buff);
+    has_fixed_range.serialize(buff);
+
+    if (has_fixed_range)
+        fixed_range->serialize(buff);
+}
+
+size_t net_sound_event::size() const {
+    size_t res = sound_name.size();
+    res += has_fixed_range.size();
+
+    if (has_fixed_range)
+        res += fixed_range->size();
+
+    return res;
+}
+
+static net_resolvable_profile::profile_variant read_resolvable_profile(
+    int32_t kind, std::span<uint8_t> &buff
+){
+    using kinds = net_resolvable_profile::kinds;
+
+    switch ((kinds) kind){
+        case kinds::partial:
+            return net_resolvable_profile_partial{buff};
+        case kinds::complete:
+            return net_game_profile{buff};
+    }
+
+    throw malformed_packet("bad resolvable profile kind");
+}
+
+net_resolvable_profile::net_resolvable_profile(std::span<uint8_t> &buff):
+    kind(buff), profile(read_resolvable_profile(kind, buff)),
+    body(buff),
+    cape(buff),
+    elytra(buff),
+    model(buff)
+{}
+
+void net_resolvable_profile::serialize(std::vector<uint8_t> &buff) const {
+    kind.serialize(buff);
+
+    std::visit(
+        [&](const auto &i){ i.serialize(buff); },
+        profile
+    );
+
+    body.serialize(buff);
+    cape.serialize(buff);
+    elytra.serialize(buff);
+    model.serialize(buff);
+}
+
+size_t net_resolvable_profile::size() const {
+    return
+        kind.size() +
+        std::visit([](const auto &i){ return i.size(); }, profile) +
+        body.size() +
+        cape.size() +
+        elytra.size() +
+        model.size()
+    ;
+}
+
+net_slot::net_slot(std::span<uint8_t> &buff):
+    item_count (buff)
+{
+    if (item_count <= 0)
+        return;
+
+    item_id.emplace(buff);
+    num_add.emplace(buff);
+    num_rem.emplace(buff);
+
+    components_add.emplace();
+    components_rem.emplace();
+
+    for (int i = 0; i < num_add; ++i)
+        components_add->emplace_back(buff);
+
+    for (int i = 0; i < num_rem; ++i)
+        components_rem->emplace_back(buff);
+}
+
+void net_slot::serialize(std::vector<uint8_t> &buff) const {
+    item_count.serialize(buff);
+
+    if (item_count <= 0)
+        return;
+
+    item_id->serialize(buff);
+    num_add->serialize(buff);
+    num_rem->serialize(buff);
+
+    for (const auto &i : *components_add)
+        i.serialize(buff);
+
+    for (const auto &i : *components_rem)
+        i.serialize(buff);
+}
+
+size_t net_slot::size() const {
+    size_t res = item_count.size();
+
+    if (item_count <= 0)
+        return res;
+
+    res += item_id->size()
+         + num_add->size()
+         + num_rem->size()
+    ;
+
+    for (const auto &i : *components_add)
+        res += i.size();
+
+    for (const auto &i : *components_rem)
+         res += i.size();
+
+    return res;
+};
+
+net_structured_component_type_and_data::net_structured_component_type_and_data (
+    std::span<uint8_t> &buff
+):
+    type {buff},
+    data {
+        structured_component_base::build_structured_component(
+            type, buff
+        )
+    }
+{}
+
+void net_structured_component_type_and_data::serialize (std::vector<uint8_t> &buff) const {
+    type.serialize(buff);
+    data->serialize(buff);
+}
+
+size_t net_structured_component_type_and_data::size() const {
+    return type.size() + data->size();
 }
 
 /*
@@ -408,67 +595,6 @@ size_t net_property::size() const {
     return res;
 }
 
-
-net_nbt_any::net_nbt_any(std::span<uint8_t> &buff):
-    data(nbt_type_untagged::build_object(read_be<nbt_tag>(buff), buff))
-{}
-
-net_nbt_any::net_nbt_any(
-    std::unique_ptr<nbt_type_untagged> &&data
-):
-    data(std::move(data))
-{}
-
-void net_nbt_any::serialize(std::vector<uint8_t> &buff) const {
-    write_be(buff, data->get_tag());
-    data->serialize(buff);
-}
-
-size_t net_nbt_any::size() const {
-    return sizeof(nbt_tag) + data->size();
-}
-
-net_sound_event::net_sound_event(std::span<uint8_t> &buff):
-    sound_name(buff),
-    has_fixed_range(buff),
-    fixed_range(
-        has_fixed_range
-            ? std::optional<net_float>(std::in_place, buff)
-            : std::nullopt
-    )
-{}
-
-net_sound_event::net_sound_event(std::string_view sound_name):
-    sound_name(sound_name),
-    has_fixed_range(false)
-{}
-
-net_sound_event::net_sound_event(
-    std::string_view sound_name, float fixed_range
-):
-    sound_name(sound_name),
-    has_fixed_range(true),
-    fixed_range(fixed_range)
-{}
-
-void net_sound_event::serialize(std::vector<uint8_t> &buff) const {
-    sound_name.serialize(buff);
-    has_fixed_range.serialize(buff);
-
-    if (has_fixed_range)
-        fixed_range->serialize(buff);
-}
-
-size_t net_sound_event::size() const {
-    size_t res = sound_name.size();
-    res += has_fixed_range.size();
-
-    if (has_fixed_range)
-        res += fixed_range->size();
-
-    return res;
-}
-
 static net_consume_effect::effect_variant read_consume_effect(
     int32_t type, std::span<uint8_t> &buff
 ){
@@ -514,94 +640,4 @@ size_t net_consume_effect::size() const {
         [](const auto &i){ return i.size(); },
         effect
     );
-}
-
-net_component_lodestone_tracker::net_component_lodestone_tracker(
-    std::span<uint8_t> &buff
-):
-    has_global_position(buff),
-    dimension(
-        has_global_position
-            ? std::optional<net_identifier>(std::in_place, buff)
-            : std::nullopt
-    ),
-    position(
-        has_global_position
-            ? std::optional<net_position>(std::in_place, buff)
-            : std::nullopt
-    ),
-    tracked(buff)
-{}
-
-void net_component_lodestone_tracker::serialize(
-    std::vector<uint8_t> &buff
-) const {
-    has_global_position.serialize(buff);
-
-    if (has_global_position) {
-        dimension->serialize(buff);
-        position->serialize(buff);
-    }
-
-    tracked.serialize(buff);
-}
-
-size_t net_component_lodestone_tracker::size() const {
-    size_t res = has_global_position.size();
-
-    if (has_global_position) {
-        res += dimension->size();
-        res += position->size();
-    }
-
-    return res + tracked.size();
-}
-
-static net_resolvable_profile::profile_variant read_resolvable_profile(
-    int32_t kind, std::span<uint8_t> &buff
-){
-    using kinds = net_resolvable_profile::kinds;
-
-    switch ((kinds) kind){
-        case kinds::partial:
-            return net_resolvable_profile_partial{buff};
-        case kinds::complete:
-            return net_game_profile{buff};
-    }
-
-    throw malformed_packet("bad resolvable profile kind");
-}
-
-net_resolvable_profile::net_resolvable_profile(std::span<uint8_t> &buff):
-    kind(buff),
-    profile(read_resolvable_profile(kind, buff)),
-    body(buff),
-    cape(buff),
-    elytra(buff),
-    model(buff)
-{}
-
-void net_resolvable_profile::serialize(std::vector<uint8_t> &buff) const {
-    kind.serialize(buff);
-
-    std::visit(
-        [&](const auto &i){ i.serialize(buff); },
-        profile
-    );
-
-    body.serialize(buff);
-    cape.serialize(buff);
-    elytra.serialize(buff);
-    model.serialize(buff);
-}
-
-size_t net_resolvable_profile::size() const {
-    return
-        kind.size() +
-        std::visit([](const auto &i){ return i.size(); }, profile) +
-        body.size() +
-        cape.size() +
-        elytra.size() +
-        model.size()
-    ;
 }
