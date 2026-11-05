@@ -3,7 +3,7 @@
 #include "inc/packet.hpp"
 #include "inc/chunk.hpp"
 #include "inc/world.hpp"
-#include "inc/registry.hpp"
+#include "registry/blocks.hpp"
 
 #include <print>
 
@@ -202,4 +202,63 @@ void player::recieve(const packet_player_action &packet){
             packet.sequence()
         }
     );
+}
+
+void player::recieve(const packet_set_carried_item &packet) {
+    inv.selected_hotbar = packet.slot();
+}
+
+void player::recieve(const packet_set_creative_mode_slot &packet) {
+    inv.slots[packet.slot()] = inventory_slot {
+        *packet.clicked_item().item_id,
+        packet.clicked_item().item_count
+    };
+}
+
+void player::recieve(const packet_use_item_on &packet){
+    inventory_slot &slot = packet.hand() == 0
+        ? inv.slots[inv.selected_hotbar]
+        : inv.slots[(int) inventory::slots_array_index::offhand]
+    ;
+
+    /**
+     * assuming we're placing a block here, not sure if we're supposed to distinguish that ourselves
+     */
+
+    int32_t x = packet.location().x,
+            y = packet.location().y,
+            z = packet.location().z
+    ;
+
+    using faces = packet_use_item_on::faces;
+
+    switch ((faces) (int) packet.face()){
+        case faces::bottom: y--; break;
+        case faces::top:    y++; break;
+        case faces::north:  z--; break;
+        case faces::south:  z++; break;
+        case faces::west:   x--; break;
+        case faces::east:   x++; break;
+    }
+
+    dimension->set_block(
+        x, y, z, block::stone
+    );
+
+    if (game_mode != game_modes::creative)
+        slot.count--;
+
+    conn.queue_packet(
+        packet_block_update {
+            net_position{x, y, z}, block::stone
+        }
+    );
+
+    conn.queue_packet(
+        packet_block_change_acknowledged {
+            packet.sequence_id()
+        }
+    );
+
+    std::println("stone @ {} {} {}", x, y, z);
 }

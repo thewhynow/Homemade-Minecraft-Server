@@ -54,6 +54,7 @@ namespace packet_id {
         block_update           = 8,
         use_item_on            = 66,
         set_carried_item       = 54,
+        set_creative_mode_slot = 57,
     };
 };
 
@@ -730,7 +731,7 @@ struct packet_block_change_acknowledged :
 {
     using packet::packet;
 
-    PACKET_FIELD(0, sequence_id); /* 0-9 */
+    PACKET_FIELD(0, sequence_id);
 };
 
 struct packet_block_update :
@@ -771,6 +772,8 @@ struct packet_use_item_on :
     PACKET_FIELD(6, inside_block);
     PACKET_FIELD(7, world_border_hit);
     PACKET_FIELD(8, sequence_id);
+
+    using faces = packet_player_action::faces;
 };
 
 struct packet_set_carried_item :
@@ -784,3 +787,15 @@ struct packet_set_carried_item :
     PACKET_FIELD(0, slot);
 };
 
+struct packet_set_creative_mode_slot :
+    packet<
+        (uint8_t) packet_id::play::set_creative_mode_slot,
+        net_short,
+        net_slot
+    >
+{
+    using packet::packet;
+
+    PACKET_FIELD(0, slot);
+    PACKET_FIELD(1, clicked_item);
+};

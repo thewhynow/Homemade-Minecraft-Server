@@ -1,4 +1,5 @@
 #include "inc/component.hpp"
+#include "inc/errors.hpp"
 #include "registry/components.hpp"
 
 
@@ -604,4 +605,6 @@ std::unique_ptr<structured_component_base>
                 new structured_component_zombie_nautilus_variant {buff}
             };
     }
+
+    throw malformed_packet("bad component id");
 }

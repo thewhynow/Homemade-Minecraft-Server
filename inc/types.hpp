@@ -1482,7 +1482,6 @@ struct net_banner_pattern :
     NET_COMPOUND_FIELD(1, translation_key);
 };
 
-/* NOT FINISHED: the fields / ctor / serialize / size are still to be written */
 struct net_slot :
     net_type
 {

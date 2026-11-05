@@ -4,6 +4,7 @@
 #include "inc/connection.hpp"
 #include "inc/packet.hpp"
 #include "inc/entity.hpp"
+#include "inventory.hpp"
 
 #include <unordered_set>
 
@@ -52,6 +53,8 @@ public:
 
     using game_modes = packet_login::game_modes;
     game_modes game_mode;
+
+    inventory inv;
 private:
     std::optional<int32_t> teleport_id;
     std::optional<int32_t> heartbeat_id;
@@ -73,4 +76,10 @@ private:
     void recieve(const packet_move_player_status_only &packet);
 
     void recieve(const packet_player_action &packet);
+
+    void recieve(const packet_set_carried_item &packet);
+
+    void recieve(const packet_set_creative_mode_slot &packet);
+
+    void recieve(const packet_use_item_on &packet);
 };

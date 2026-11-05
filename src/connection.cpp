@@ -1,3 +1,4 @@
+#include "inc/component.hpp"
 #include "inc/connection.hpp"
 #include <sys/socket.h>
 #include <unistd.h>
@@ -536,7 +537,10 @@ void connection::handle_play(std::span<uint8_t> &buff){
             packet_move_player_position,
             packet_move_player_rotation,
             packet_move_player_status_only,
-            packet_player_action
+            packet_player_action,
+            packet_use_item_on,
+            packet_set_carried_item,
+            packet_set_creative_mode_slot
         > (buff)
     ;
 
