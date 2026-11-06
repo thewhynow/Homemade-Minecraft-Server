@@ -53,8 +53,8 @@ namespace packet_id {
         block_change_ack       = 4,
         block_update           = 8,
         use_item_on            = 66,
-        set_carried_item       = 54,
-        set_creative_mode_slot = 57,
+        set_carried_item       = 53,
+        set_creative_mode_slot = 56,
     };
 };
 

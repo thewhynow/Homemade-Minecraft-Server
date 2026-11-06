@@ -143,6 +143,45 @@ def generate_registries() -> None:
     with open("src/registry.cpp", "w") as registry_cpp:
         registry_cpp.writelines(registry_cpp_lines)
 
+def generate_item_block_map() -> None:
+    matches = []
+
+    with open("reports/registries.json", "r") as registries_json, open("reports/blocks.json", "r") as blocks_json:
+        items = json.load(registries_json)["minecraft:item"]["entries"]
+        blocks = json.load(blocks_json)
+
+        for item_name in items:
+            if item_name in blocks and len(blocks[item_name]["states"]) == 1:
+                matches.append(item_name)
+                print(item_name)
+
+    with open("src/item_block_map.cpp", "w") as item_block_cpp:
+        item_block_cpp.write(
+"""
+#include "inc/item_block_map.hpp"
+#include "registry/blocks.hpp"
+#include "registry/items.hpp"
+
+uint16_t item_to_block(uint32_t item){
+    switch(item){
+"""
+        )
+
+        item_block_cpp.writelines(
+f"""
+        case item::{name[10:]}: return block::{name[10:]};
+"""
+        for name in matches
+        )
+
+        item_block_cpp.write(
+"""
+    }
+
+    return -1;
+}
+"""
+        )
 
 if __name__ == "__main__":
     force = "--force" in sys.argv
@@ -152,6 +191,7 @@ if __name__ == "__main__":
         (generate_items, ["reports/registries.json"], ["registry/items.hpp"]),
         (generate_components, ["reports/registries.json"], ["registry/components.hpp"]),
         (generate_registries, ["reports/registries.json"], ["inc/registry.hpp", "src/registry.cpp"]),
+        (generate_item_block_map, ["reports/blocks.json", "reports/registries.json"], ["src/item_block_map.cpp"])
     ]
 
     for generator, inputs, outputs in generators:

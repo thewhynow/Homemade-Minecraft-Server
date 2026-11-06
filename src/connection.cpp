@@ -3,6 +3,7 @@
 #include <sys/socket.h>
 #include <unistd.h>
 #include <span>
+#include <print>
 #include <cstdlib>
 #include "inc/packet.hpp"
 #include "inc/errors.hpp"
@@ -544,8 +545,10 @@ void connection::handle_play(std::span<uint8_t> &buff){
         > (buff)
     ;
 
-    if (!packet_variant)
+    if (!packet_variant){
+        std::println("unhandled play packet: id {} size {}", buff[0], buff.size());
         return; /* unhandled play packet, ignore */
+    }
 
     plr->recieve(*packet_variant);
 }

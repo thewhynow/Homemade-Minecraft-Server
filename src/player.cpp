@@ -4,6 +4,7 @@
 #include "inc/chunk.hpp"
 #include "inc/world.hpp"
 #include "registry/blocks.hpp"
+#include "inc/item_block_map.hpp"
 
 #include <print>
 
@@ -205,14 +206,17 @@ void player::recieve(const packet_player_action &packet){
 }
 
 void player::recieve(const packet_set_carried_item &packet) {
-    inv.selected_hotbar = packet.slot();
+    inv.selected_hotbar = packet.slot() + (int) inventory::slots_array_index::hotbar;
 }
 
 void player::recieve(const packet_set_creative_mode_slot &packet) {
-    inv.slots[packet.slot()] = inventory_slot {
-        *packet.clicked_item().item_id,
-        packet.clicked_item().item_count
-    };
+    inv.slots[packet.slot()].count = packet.clicked_item().item_count;
+
+    if (packet.clicked_item().item_count)
+        inv.slots[packet.slot()].item_id = *packet.clicked_item().item_id;
+
+    if (packet.clicked_item().item_count)
+        std::println("{} x {} @ {}", packet.clicked_item().item_id->value.value, packet.clicked_item().item_count.value.value, packet.slot().value);
 }
 
 void player::recieve(const packet_use_item_on &packet){
@@ -241,8 +245,10 @@ void player::recieve(const packet_use_item_on &packet){
         case faces::east:   x++; break;
     }
 
+    uint16_t block = item_to_block(slot.item_id); 
+
     dimension->set_block(
-        x, y, z, block::stone
+        x, y, z, block
     );
 
     if (game_mode != game_modes::creative)
@@ -250,7 +256,7 @@ void player::recieve(const packet_use_item_on &packet){
 
     conn.queue_packet(
         packet_block_update {
-            net_position{x, y, z}, block::stone
+            net_position{x, z, y}, block
         }
     );
 
@@ -260,5 +266,5 @@ void player::recieve(const packet_use_item_on &packet){
         }
     );
 
-    std::println("stone @ {} {} {}", x, y, z);
+    std::println("[{}] = {} -> {} @ {} {} {}", inv.selected_hotbar, slot.item_id, block, x, y, z);
 }
